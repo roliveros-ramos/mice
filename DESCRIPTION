@@ -1,7 +1,7 @@
 Package: mice
 Type: Package
 Title: Yet another Model of Intermediate Complexity for Ecosystem assessment 
-Version: 0.1.0
+Version: 0.0.0.9000
 Author: Ricardo Oliveros-Ramos
 Maintainer: Ricardo Oliveros-Ramos <Ricardo.Oliveros.Ramos@ifremer.fr>
 Description: More about what it does (maybe more than one line)
@@ -9,5 +9,4 @@ Description: More about what it does (maybe more than one line)
 License: What license is it under?
 Encoding: UTF-8
 LazyData: TRUE
-Imports: Rcpp (>= 0.12.7)
-LinkingTo: Rcpp
+RoxygenNote: 6.0.1
