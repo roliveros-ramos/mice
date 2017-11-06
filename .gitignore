@@ -1,0 +1,41 @@
+# History files
+.Rhistory
+.Rapp.history
+
+# Example code in package build process
+*-Ex.R
+
+# RStudio files
+.Rproj.user/
+*.Rproj
+.Rproj.user
+
+# Rcpp files
+*.o
+*.dll
+
+# vim backup
+
+*~
+
+# Big binary data files
+*.RData
+
+# LaTeX auxiliar files
+*.log
+*.aux
+*.dvi
+*.lof
+*.lot
+*.bit
+*.idx
+*.glo
+*.bbl
+*.ilg
+*.toc
+*.ind
+*.out
+*.blg
+
+# TeX Studio gz backup
+*.synctex.gz
