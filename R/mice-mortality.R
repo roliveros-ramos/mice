@@ -2,7 +2,7 @@
 
 # Internal functions ------------------------------------------------------
 
-calculateMortality = function(N, w, access, F, dt, Ystar=0.4, delta=0.9, niter=7) {
+calculateMortality = function(N, F, w, access, dt, Ystar=0.4, delta=0.9, niter=7) {
 
   Yso = getYso(N=N, w=w, dt=dt, Ystar=Ystar)
   M   = getStartM(N=N, w=w, delta=delta, dt=dt, Ystar=Ystar) # columns are predators
