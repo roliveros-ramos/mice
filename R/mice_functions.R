@@ -15,12 +15,6 @@ getStartM = function(N, w, delta, dt, Ystar=0.4) {
 }
 
 
-VB = function(age, Linf, k, t0) Linf*(1-exp(-k*(age-t0)))
-
-
-
-
-
 .getVar = function(pop, what) {
   out = list()
   for(i in seq_along(pop)) {
@@ -40,21 +34,56 @@ VB = function(age, Linf, k, t0) Linf*(1-exp(-k*(age-t0)))
   return(out)
 }
 
-getAccessibility2 = function(pop, predRange) {
-  size = .getVar(pop, "size")
-  .inside = function(x, y, limits) ((x >= y*limits[1]) & (x <= y*limits[2])) + 0
-  out = outer(X = size, Y = size, limits=predRange, FUN=.inside)
-  return(out)
-}
+# getAccessibility2 = function(pop, predRange) {
+#   size = .getVar(pop, "size")
+#   .inside = function(x, y, limits) ((x >= y*limits[1]) & (x <= y*limits[2])) + 0
+#   out = outer(X = size, Y = size, limits=predRange, FUN=.inside)
+#   return(out)
+# }
+#
+# getAccessibility3 = function(pop) {
+#   size = .getVar(pop, "size")
+#   psize = cbind(.getVar(pop, "psize_min"), .getVar(pop, "psize_max"))
+#   .inside = function(limits, x) ((x >= limits[1]) & (x <= limits[2])) + 0
+#   out = apply(psize, 1, FUN=.inside, x=size)
+#   return(out)
+# }
 
 getAccessibility = function(pop) {
-  size = .getVar(pop, "size")
-  psize = cbind(.getVar(pop, "psize_min"), .getVar(pop, "psize_max"))
-  .inside = function(limits, x) ((x >= limits[1]) & (x <= limits[2])) + 0
-  out = apply(psize, 1, FUN=.inside, x=size)
+
+  xi = .getVar(pop, "s_min") # minimum size of prey
+  yi = .getVar(pop, "s_max") # maximum size of prey
+
+  x = .getVar(pop, "psize_min") # minimum prey size (for predator)
+  y = .getVar(pop, "psize_max") # maximum prey size (for predator)
+
+  predator = cbind(x, y)
+  prey     = cbind(xi, yi)
+
+  .inside = function(predator, prey) {
+    x = predator[1]
+    y = predator[2]
+    xi = prey[, 1]
+    yi = prey[, 2]
+    prey_range = yi - xi # size range of prey
+    m = pmax.int(xi, x)
+    M = pmin.int(yi, y)
+    r = M - m
+    out = numeric(nrow(prey))
+    out[r==0] = 1
+    ind = which(r>0)
+    out[ind] = r[ind]/prey_range[ind]
+    return(out)
+  }
+
+  out = apply(predator, 1, FUN=.inside, prey=prey)
+
   return(out)
 }
 
+.getFeedingType = function(par) {
+  return(par$feedType)
+}
 
 updateN = function(N, skeleton, plus=FALSE) {
 
@@ -85,8 +114,17 @@ updateR = function(N, skeleton, R) {
   return(out)
 }
 
+updateL = function(L) {
+  return(L)
+}
 
-getRecruitment = function(SSB, SSN, skeleton, groups) {
+updateC = function(C) {
+  return(C)
+}
+
+
+
+getRecruitment = function(SSB, SSN, t, skeleton, groups) {
 
   SSB = 1e-6*sapply(relist(SSB, skeleton), FUN=sum) # grams to tonnes
   SSN = sapply(relist(SSN, skeleton), FUN=sum) # total individuals, male + female
@@ -96,14 +134,20 @@ getRecruitment = function(SSB, SSN, skeleton, groups) {
   for(i in seq_along(groups)) {
 
     thisGroup = groups[[i]]
-    recType = thisGroup$recType
-    recBy   = thisGroup$recBy
-    if(is.null(recType)) recType = Ricker
-    if(is.null(recBy)) recBy = "biomass"
-    recModel = match.fun(recType)
-    x = switch(recBy, biomass=SSB[i], number=SSN[i])
-    R[i] = recModel(x, par=thisGroup)
-  }
+
+    if(thisGroup$type=="resource") {
+      R[i] = 1e6*thisGroup$biomass[t] # tonnes to grams
+    } else {
+      recType = thisGroup$recType
+      recBy   = thisGroup$recBy
+      if(is.null(recType)) recType = "Ricker"
+      if(is.null(recBy)) recBy = "biomass"
+      recModel = match.fun(recType) # update names
+      x = switch(recBy, biomass=SSB[i], number=SSN[i])
+      R[i] = recModel(x, par=thisGroup)
+    }
+
+  } # end for groups
 
   return(R)
 
