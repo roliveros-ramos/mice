@@ -19,7 +19,6 @@
 *~
 
 # Big binary data files
-*.RData
 
 # LaTeX auxiliar files
 *.log
