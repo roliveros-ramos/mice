@@ -3,9 +3,13 @@
 
 checkGroups = function(groups, ndt) {
 
+  groupNames = sapply(groups, FUN = "[[", i="name")
+
   for(i in seq_along(groups)) {
 
     if(is.null(groups[[i]]$type)) groups[[i]]$type = "functional_group"
+
+    groups[[i]]$target = .initExclusion(groups[[i]]$preyExclude, groupNames)
 
     # check for resources
     if(groups[[i]]$type=="resource") {
@@ -16,16 +20,43 @@ checkGroups = function(groups, ndt) {
       }
       if(length(groups[[i]]$biomass)!=ndt)
         stop("One resource biomass value for every time step or a single one must be provided.")
+
+      groups[[i]]$recruitment = "resource"
+
     } # end of check for resources
+
+    ## get recruitment function
+    recruitmentType = groups[[i]]$recruitment
+
+    if(is.null(recruitmentType)) recruitmentType = "ricker"
+
+    recruitmentModel = match.fun(paste("recruitment", recruitmentType, "spec", sep="."))
+
+    src = attr(recruitmentModel, "srcref")
+
+    # thisGroup = groups[[i]]
+    #
+    # recModel = function(biomass, abundance, t) {
+    #   recruitmentModel(biomass=biomass, abundance=abundance, t=t, par=thisGroup)
+    #  }
+
+    attr(recruitmentModel, "type") = recruitmentType
+    attr(recruitmentModel, "source") = src
+    class(recruitmentModel) = "recruitment.function"
+
+    groups[[i]]$recruitment = recruitmentModel
+
+    # end of recruitment
 
   }
 
   return(groups)
+
 }
 
 initGroups = function(groups, dt) {
   out = lapply(groups, FUN=.initGroups, dt=dt)
-  names(out) = sapply(groups, FUN = "[", i="name")
+  names(out) = sapply(groups, FUN = "[[", i="name")
   return(out)
 }
 
@@ -44,12 +75,11 @@ initGroups = function(groups, dt) {
   a = par$a
   b = par$b
   am = par$am
-  M0 = par$M0
   B0 = par$B0*1e6 # tonnes -> g
   psmin = par$predRange[1] # to be updated with other criteria
   psmax = par$predRange[2]
-  M = if(is.null(M0)) -log(0.05)/A else M0
-  out = data.frame(name=par$name, age=seq(0, A, by=dt))
+  M = if(is.null(par$M)) -log(0.01)/A else par$M
+  out = data.frame(name=par$name, age=seq(0, A, by=dt), stringsAsFactors=FALSE)
 
   L1 = VB(age=out$age, Linf=Linf, k=k, t0=t0)    # t=t
   L2 = VB(age=out$age+dt, Linf=Linf, k=k, t0=t0) # t=t+dt
@@ -66,13 +96,18 @@ initGroups = function(groups, dt) {
   mw = exp(-M*out$age)*out$w
   out$N = B0*(mw/sum(mw))/out$w
   out$mature = (out$age >= am) + 0
-  out$ssb = out$w*out$mature
+  out$ssb = out$w_mean*out$mature
 
   out$feedType = .getFeedingType(par)
-  out$logPredLength = log10(out$s_mean)
+  # temporal
+  out$feedType[out$s_mean<5] = "planktivorous"
+  out$logPredLength = log10(out$s_min)
   out$psize_min = 10^predict(preySizeModel$min, newdata=out) # prey upon with mean length
+  out$logPredLength = log10(out$s_max)
   out$psize_max = 10^predict(preySizeModel$max, newdata=out) # prey upon with mean length
   out$logPredLength = NULL
+
+  out$Mold = mortality.senecence.spec(out$age + 0.5*dt, par=par)
   # out$group = par$group
   out$type = par$type
 
@@ -83,7 +118,7 @@ initGroups = function(groups, dt) {
 
   B0 = par$biomass[1]*1e6 # tonnes -> g
 
-  out = data.frame(name=par$name, age=0)
+  out = data.frame(name=par$name, age=0, stringsAsFactors=FALSE)
 
   L1 = par$size_min    # t=t
   L2 = par$size_max # t=t+dt
@@ -104,6 +139,8 @@ initGroups = function(groups, dt) {
   out$psize_max = -1 # prey upon with mean length
   # out$group = par$group
 
+  out$Mold = 0
+
   out$type = par$type
   return(out)
 }
@@ -121,9 +158,9 @@ checkFleets = function(fleets) {
 }
 
 initFleets = function(fleets, groups, ndtPerYear, T) {
-  groupNames = sapply(groups, FUN = "[", i="name")
+  groupNames = sapply(groups, FUN = "[[", i="name")
   out = lapply(fleets, FUN=.initFleet, ndtPerYear=ndtPerYear, T=T, groupNames=groupNames)
-  names(out) = sapply(fleets, FUN = "[", i="name")
+  names(out) = sapply(fleets, FUN = "[[", i="name")
   return(out)
 }
 
@@ -165,8 +202,12 @@ initFleets = function(fleets, groups, ndtPerYear, T) {
     return(out)
   }
   if(is.character(target)) {
-    if(!all(target %in% groupNames))
-      stop("Target names do not match species group names.")
+    if(!all(target %in% groupNames)) {
+      ind = which(!(target %in% groupNames))
+      msg = paste(target[ind], collapse=",")
+      msg = sprintf("target names (%s) do not match species group names.", msg)
+      stop(msg)
+    }
     out[target] = 1
     return(out)
   }
@@ -177,4 +218,29 @@ initFleets = function(fleets, groups, ndtPerYear, T) {
     return(out)
   }
 }
+
+
+.initExclusion = function(preyExclude, groupNames) {
+
+  out = setNames(numeric(length(groupNames)), nm = groupNames)
+  out[] = 1
+
+  if(is.null(preyExclude)) {
+    return(out)
+  }
+
+  if(is.character(preyExclude)) {
+    if(!all(preyExclude %in% groupNames)) {
+      ind = which(!(preyExclude %in% groupNames))
+      msg = paste(preyExclude[ind], collapse=",")
+      msg = sprintf("preyExclude names (%s) do not match species group names.", msg)
+      stop(msg)
+    }
+    out[preyExclude] = 0
+    return(out)
+  }
+
+}
+
+
 
