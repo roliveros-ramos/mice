@@ -1,20 +1,4 @@
 
-
-getYso = function(N, w, dt, Ystar=0.4) Ystar*w*N*dt
-
-getStartM = function(N, w, delta, dt, Ystar=0.4) {
-  Ys = Ystar*w*N*dt
-  startC = function(i, Ys, N, w, delta) pmin(Ys[i], delta*w*N)/w
-  C = sapply(seq_along(N), FUN=startC, Ys=Ys, N=N, w=w, delta=delta)
-  N = floor(N)
-  C = floor(C)
-  M = log(N/(N-C))
-  M[is.nan(M)] = 0
-  M[!is.finite(M)] = 0
-  return(M)
-}
-
-
 .getVar = function(pop, what) {
   out = list()
   for(i in seq_along(pop)) {
@@ -49,7 +33,7 @@ getStartM = function(N, w, delta, dt, Ystar=0.4) {
 #   return(out)
 # }
 
-getAccessibility = function(pop) {
+getAccessibility = function(pop, groups) {
 
   xi = .getVar(pop, "s_min") # minimum size of prey
   yi = .getVar(pop, "s_max") # maximum size of prey
@@ -76,7 +60,12 @@ getAccessibility = function(pop) {
     return(out)
   }
 
-  out = apply(predator, 1, FUN=.inside, prey=prey)
+  grs = .getVar(pop, "name")
+  dietMatrix = sapply(sapply(groups, FUN="[", i="target"), FUN="[", i=grs)
+  colnames(dietMatrix) = sapply(groups, FUN="[[", i="name")
+  dietMatrix = dietMatrix[, grs]
+
+  out = apply(predator, 1, FUN=.inside, prey=prey)*dietMatrix
 
   return(out)
 }
@@ -88,6 +77,7 @@ getAccessibility = function(pop) {
 updateN = function(N, skeleton, plus=FALSE) {
 
   # skeleton[] = N
+  N[N<1] = 0
   N = relist(N, skeleton)
 
   .updateN = function(x, plus) {
@@ -102,17 +92,6 @@ updateN = function(N, skeleton, plus=FALSE) {
   return(out)
 }
 
-updateR = function(N, skeleton, R) {
-
-  # skeleton[] = N
-  N = relist(N, skeleton)
-
-  for(i in seq_along(N)) N[[i]][1] = R[i]
-
-  out = c(unlist(N))
-
-  return(out)
-}
 
 updateL = function(L) {
   return(L)
@@ -122,38 +101,6 @@ updateC = function(C) {
   return(C)
 }
 
-
-
-getRecruitment = function(SSB, SSN, t, skeleton, groups) {
-
-  SSB = 1e-6*sapply(relist(SSB, skeleton), FUN=sum) # grams to tonnes
-  SSN = sapply(relist(SSN, skeleton), FUN=sum) # total individuals, male + female
-
-  R = numeric(length(groups))
-
-  for(i in seq_along(groups)) {
-
-    thisGroup = groups[[i]]
-
-    if(thisGroup$type=="resource") {
-      R[i] = 1e6*thisGroup$biomass[t] # tonnes to grams
-    } else {
-      recType = thisGroup$recType
-      recBy   = thisGroup$recBy
-      if(is.null(recType)) recType = "Ricker"
-      if(is.null(recBy)) recBy = "biomass"
-      recModel = match.fun(recType) # update names
-      x = switch(recBy, biomass=SSB[i], number=SSN[i])
-      R[i] = recModel(x, par=thisGroup)
-    }
-
-  } # end for groups
-
-  return(R)
-
-}
-
-Ricker = function(x, par) par$alpha*x*exp(-par$beta*x)
 
 getBiomass = function(N, w, skeleton) {
 

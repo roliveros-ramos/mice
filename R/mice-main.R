@@ -14,8 +14,9 @@
 #' @export
 #'
 #' @examples
-runMICE = function(groups, fleets, Mstarv = 0.3, Ystar = 0.4, delta = 0.9,
-                   T = 100, ndtPerYear=4, verbose=TRUE) {
+runMICE = function(groups, fleets, T, ndtPerYear=4,
+                   Mstarv = 0.3, Ystar = 3.5, delta = 0.9, Fmult=1, niter=7,
+                   verbose=TRUE) {
 
   CPU.time = proc.time()
 
@@ -34,7 +35,7 @@ runMICE = function(groups, fleets, Mstarv = 0.3, Ystar = 0.4, delta = 0.9,
 
   Ft = getFishingMortality(fsh, pop)
 
-  access = getAccessibility(pop=pop)
+  access = getAccessibility(pop=pop, groups=groups)
 
   skeleton = .getSkeleton(pop, what=2)
 
@@ -43,6 +44,7 @@ runMICE = function(groups, fleets, Mstarv = 0.3, Ystar = 0.4, delta = 0.9,
   w_ssb = .getVar(pop, "ssb")
   isMature = .getVar(pop, "mature")
   w = .getVar(pop, "w_mean") # make it dynamic
+  Mold = .getVar(pop, "Mold")*dt
 
   N = matrix(nrow=length(N0), ncol=ndt+1) # abundance
   C = matrix(nrow=length(N0), ncol=ndt) # catch (number)
@@ -59,11 +61,12 @@ runMICE = function(groups, fleets, Mstarv = 0.3, Ystar = 0.4, delta = 0.9,
   for(t in seq_len(ndt)) {
 
     Fst = getSelectivity(L=L[, t], fleets=fsh)*Ft[, , t]*dt
-    F = rowSums(Fst)
-    mort = calculateMortality(N=N[, t], F=F, w=w, access=access, dt=dt)
+    F = rowSums(Fst)*Fmult
+    mort = calculateMortality(N=N[, t], add=F+Mold, w=w, access=access,
+                              dt=dt, Ystar=Ystar, delta=delta, niter=niter)
     M  = rowSums(mort$M)
     Ms = Mstarv*mort$starv
-    Z = M + F + Ms
+    Z = M + Ms + Mold + F
     deaths = N[, t]*(1-exp(-Z))
     C[, t]   = updateC(deaths*F/Z)
     CatchbyFleet[, , t] = deaths*Fst/Z
@@ -83,7 +86,7 @@ runMICE = function(groups, fleets, Mstarv = 0.3, Ystar = 0.4, delta = 0.9,
 
   Y = t(rowsum(1e-6*C*w, group=.getVar(pop, "name"))) # grams to tonnes
 
-  colnames(Y) = colnames(B) = sapply(groups, FUN="[", i="name")
+  colnames(Y) = colnames(B) = sapply(groups, FUN="[[", i="name")
 
   CPU.time = proc.time() - CPU.time
 
