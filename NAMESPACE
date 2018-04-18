@@ -2,6 +2,11 @@
 
 S3method(plot,mice.model)
 export("selectivity.knife-edge.spec")
+export(mortality.senecence.spec)
+export(recruitment.forcing.spec)
+export(recruitment.pups.spec)
+export(recruitment.resource.spec)
+export(recruitment.ricker.spec)
 export(runMICE)
 export(selectivity.gaussian.spec)
 export(selectivity.logistic.spec)

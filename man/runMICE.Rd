@@ -4,17 +4,17 @@
 \alias{runMICE}
 \title{Run a simulation of the MICE model}
 \usage{
-runMICE(groups, fleets, Mstarv = 0.3, Ystar = 0.4, delta = 0.9, T = 100,
-  ndtPerYear = 4, verbose = TRUE)
+runMICE(groups, fleets, T, ndtPerYear = 4, Mstarv = 0.3, Ystar = 3.5,
+  delta = 0.9, Fmult = 1, niter = 7, verbose = TRUE)
 }
 \arguments{
+\item{T}{Time horizon for the simulation (years).}
+
 \item{Mstarv}{Maximum starvation mortality}
 
 \item{Ystar}{Optimal annual food ration per gram of biomass}
 
 \item{delta}{Fraction of prey population available to predators}
-
-\item{T}{Time horizon for the simulation (years).}
 
 \item{LHT}{List with the life history parameters}
 
