@@ -1,13 +1,15 @@
 #' Run a simulation of the MICE model
 #'
-#' @param LHT List with the life history parameters
-#' @param B0 Initial biomass for all species
-#' @param predRange Minimum and maximum predator-prey ratios
-#' @param Mstarv Maximum starvation mortality
-#' @param Ystar Optimal annual food ration per gram of biomass
-#' @param delta Fraction of prey population available to predators
-#' @param dt Time step for simulation, in fractions of a year
-#' @param T Time horizon for the simulation (years).
+#' @param groups A list containing the information to create the functional groups. See details.
+#' @param fleets A list containing the information to create the fleets. See details.
+#' @param ndtPerYear Number of time steps per year.
+#' @param Mstarv Maximum starvation mortality.
+#' @param Ystar Optimal annual food ration per gram of biomass.
+#' @param delta Fraction of prey population available to predators.
+#' @param par A list with parameters values. These parameters take precedence over 'groups' and 'fleets'.
+#' @param Fmult Fishing multiplier. All the fishing mortalities are multiplied by this value.
+#' @param niter Number of iterations for the calculation of predation mortality.
+#' @param verbose Logical, should running messages be produced?
 #'
 #' @return A list with the abundance (N), length (L) and biomass (B) of
 #' all the species modeled.

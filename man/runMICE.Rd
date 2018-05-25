@@ -5,24 +5,28 @@
 \title{Run a simulation of the MICE model}
 \usage{
 runMICE(groups, fleets, T, ndtPerYear = 4, Mstarv = 0.3, Ystar = 3.5,
-  delta = 0.9, Fmult = 1, niter = 7, verbose = TRUE)
+  delta = 0.9, par = NULL, Fmult = 1, niter = 7, verbose = TRUE)
 }
 \arguments{
-\item{T}{Time horizon for the simulation (years).}
+\item{groups}{A list containing the information to create the functional groups. See details.}
 
-\item{Mstarv}{Maximum starvation mortality}
+\item{fleets}{A list containing the information to create the fleets. See details.}
 
-\item{Ystar}{Optimal annual food ration per gram of biomass}
+\item{ndtPerYear}{Number of time steps per year.}
 
-\item{delta}{Fraction of prey population available to predators}
+\item{Mstarv}{Maximum starvation mortality.}
 
-\item{LHT}{List with the life history parameters}
+\item{Ystar}{Optimal annual food ration per gram of biomass.}
 
-\item{B0}{Initial biomass for all species}
+\item{delta}{Fraction of prey population available to predators.}
 
-\item{predRange}{Minimum and maximum predator-prey ratios}
+\item{par}{A list with parameters values. These parameters take precedence over 'groups' and 'fleets'.}
 
-\item{dt}{Time step for simulation, in fractions of a year}
+\item{Fmult}{Fishing multiplier. All the fishing mortalities are multiplied by this value.}
+
+\item{niter}{Number of iterations for the calculation of predation mortality.}
+
+\item{verbose}{Logical, should running messages be produced?}
 }
 \value{
 A list with the abundance (N), length (L) and biomass (B) of
