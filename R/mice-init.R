@@ -4,6 +4,7 @@
 checkGroups = function(groups, ndt) {
 
   groupNames = sapply(groups, FUN = "[[", i="name")
+  names(groups) = groupNames
 
   for(i in seq_along(groups)) {
 
@@ -153,6 +154,9 @@ initGroups = function(groups, dt) {
 
 checkFleets = function(fleets) {
 
+  fleetNames = sapply(fleets, FUN = "[[", i="name")
+  names(fleets) = fleetNames
+
   return(fleets)
 
 }
@@ -243,4 +247,27 @@ initFleets = function(fleets, groups, ndtPerYear, T) {
 }
 
 
+# update Parameters -------------------------------------------------------
+
+updateParameters = function(target, par) {
+
+  if(!is.list(par)) stop("par must be a list.")
+
+  parNames = names(par)
+  if(any(parNames=="")) stop("all 'par' elements must be named.")
+
+  validNames = sapply(target, FUN = "[[", i="name")
+
+  for(parName in parNames) {
+    gNames = names(par[[parName]])
+    gNames = gNames[which(gNames %in% validNames)]
+    if(length(gNames)==0) next
+    for(iName in gNames) {
+      target[[iName]][parName] = par[[parName]][iName]
+    }
+  }
+
+  return(target)
+
+}
 

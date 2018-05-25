@@ -15,8 +15,8 @@
 #'
 #' @examples
 runMICE = function(groups, fleets, T, ndtPerYear=4,
-                   Mstarv = 0.3, Ystar = 3.5, delta = 0.9, Fmult=1, niter=7,
-                   verbose=TRUE) {
+                   Mstarv = 0.3, Ystar = 3.5, delta = 0.9, par=NULL,
+                   Fmult=1, niter=7, verbose=TRUE) {
 
   CPU.time = proc.time()
 
@@ -26,12 +26,17 @@ runMICE = function(groups, fleets, T, ndtPerYear=4,
   time = seq(from=0, to=T, length=ndt+1)
 
   groups = checkGroups(groups, ndt=ndt) # TO_DO: check, set defaults
+  if(!is.null(par)) groups = updateParameters(groups, par)
+
   fleets = checkFleets(fleets) # TO_DO: check, set defaults
+  if(!is.null(par)) fleets = updateParameters(fleets, par)
 
   types = sapply(groups, FUN="[", i="type")
 
   pop = initGroups(groups=groups, dt=dt)
+
   fsh = initFleets(fleets=fleets, groups=groups, ndtPerYear=ndtPerYear, T=T) # on annual scale or already on dt? F$total?
+
 
   Ft = getFishingMortality(fsh, pop)
 
@@ -60,6 +65,11 @@ runMICE = function(groups, fleets, T, ndtPerYear=4,
 
   for(t in seq_len(ndt)) {
 
+    if(isTRUE(verbose)) {
+      pb = txtProgressBar(style=3)
+      setTxtProgressBar(pb, (t-1)/ndt)
+    }
+
     Fst = getSelectivity(L=L[, t], fleets=fsh)*Ft[, , t]*dt
     F = rowSums(Fst)*Fmult
     mort = calculateMortality(N=N[, t], add=F+Mold, w=w, access=access,
@@ -82,6 +92,11 @@ runMICE = function(groups, fleets, T, ndtPerYear=4,
 
   }
 
+  if(isTRUE(verbose)) {
+    pb = txtProgressBar(style=3)
+    setTxtProgressBar(pb, (t-1)/ndt)
+  }
+
   # post-processing outputs
 
   Y = t(rowsum(1e-6*C*w, group=.getVar(pop, "name"))) # grams to tonnes
@@ -90,7 +105,7 @@ runMICE = function(groups, fleets, T, ndtPerYear=4,
 
   CPU.time = proc.time() - CPU.time
 
-  if(isTRUE(verbose)) message(sprintf("Model run time: %0.1f seconds.", CPU.time[3]))
+  if(isTRUE(verbose)) message(sprintf("\nModel run time: %0.1f seconds.", CPU.time[3]))
 
   raw = list(N=N, L=L, C=C, CatchbyFleet=CatchbyFleet,
              CatchbyFleetByGroup=CatchbyFleetByGroup)
