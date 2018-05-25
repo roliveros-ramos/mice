@@ -7,26 +7,16 @@ calculateMortality = function(N, add, w, access, dt, Ystar=3.5, delta=0.9, niter
   eta_crit = 0.57
   Yso = getYso(N=N, w=w, dt=dt, Ystar=Ystar)
   M   = getStartM(N=N, w=w, delta=delta, dt=dt, Ystar=Ystar) # columns are predators
-  Mj = M*access # init
+  Mj  = M*access # init
 
-  # YYj = matrix(ncol=ncol(Mj), nrow=niter)
-  # cf = matrix(ncol=ncol(Mj), nrow=niter)
+  ml = iterativeMortality(rMj=as.matrix(Mj), radd=as.numeric(add),
+                          rw=as.numeric(w), rN=as.numeric(N),
+                          rYso=as.numeric(Yso), rniter=as.integer(niter))
 
-  for(i in 1:niter) {
-    Zj = rowSums(Mj) + add # mortality for each "prey" (1-exp(-Z))*N is total deads of each prey
-    Cj = (Mj/Zj)*(1-exp(-Zj))*N # total deads of each prey by predator
-    Cj[is.nan(Cj)] = 0
-    Yj = colSums(w*Cj)
-    cfj = matrix(pmin(Yso/Yj, 1), nrow=length(Yj), ncol=length(Yj), byrow=TRUE)
-    cfj[is.nan(cfj)] = 0
-    Mj = cfj*Mj
-    # YYj[i, ] = Yj
-    # cf[i, ] = cfj[1,]
-  }
-  ratio = pmax(1 - (Yj/Yso)/eta_crit, 0)
+  ratio = pmax(1 - (ml$Yj/Yso)/eta_crit, 0)
   ratio[is.nan(ratio)] = 0
 
-  return(list(M=Mj, starv=c(ratio)))
+  return(list(M=ml$M, starv=c(ratio)))
 }
 
 
