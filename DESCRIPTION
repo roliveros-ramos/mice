@@ -9,5 +9,12 @@ Description: More about what it does (maybe more than one line)
 License: What license is it under?
 Encoding: UTF-8
 LazyData: TRUE
-Imports: mgcv
+Depends:
+    R (>= 3.0)
+Imports:
+    Rcpp (>= 0.12.0),
+    stats,
+    graphics,
+    mgcv
 RoxygenNote: 6.0.1
+LinkingTo: Rcpp
