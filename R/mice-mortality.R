@@ -22,7 +22,7 @@ calculateMortality = function(N, add, w, access, dt, Ystar=3.5, delta=0.9, niter
 
 getYso = function(N, w, dt, Ystar=3.5) Ystar*w*N*dt
 
-getStartM = function(N, w, delta, dt, Ystar=3.5) {
+getStartM0 = function(N, w, delta, dt, Ystar=3.5) {
   Ys = Ystar*w*N*dt
   startC = function(i, Ys, N, w, delta) pmin(Ys[i], delta*w*N)/w
   C = sapply(seq_along(N), FUN=startC, Ys=Ys, N=N, w=w, delta=delta)
@@ -33,6 +33,22 @@ getStartM = function(N, w, delta, dt, Ystar=3.5) {
   M[!is.finite(M)] = 0
   return(M)
 }
+
+getStartMx = function(N, w, delta, dt, Ystar=3.5) {
+
+  M = matrix(0, nrow=length(N), ncol=length(N))
+  for(i in 1:length(N)) {
+    Ysi = Ystar*w[i]*N[i]*dt
+    for(j in 1:length(N)) {
+      Nj = floor(N[j])
+      Cij = floor(min(Ysi/w[j], delta*Nj)) # to integer directly
+      if(Cij > 1) M[i,j] = log(Nj/(Nj-Cij))
+    }
+  }
+
+  return(M)
+}
+
 
 #' @export
 mortality.senecence.spec = function(x, par, tiny=1e-6) {
