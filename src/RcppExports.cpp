@@ -5,6 +5,21 @@
 
 using namespace Rcpp;
 
+// getStartM
+NumericMatrix getStartM(NumericVector N, NumericVector w, double delta, double dt, double Ystar);
+RcppExport SEXP _mice_getStartM(SEXP NSEXP, SEXP wSEXP, SEXP deltaSEXP, SEXP dtSEXP, SEXP YstarSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type N(NSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type w(wSEXP);
+    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
+    Rcpp::traits::input_parameter< double >::type dt(dtSEXP);
+    Rcpp::traits::input_parameter< double >::type Ystar(YstarSEXP);
+    rcpp_result_gen = Rcpp::wrap(getStartM(N, w, delta, dt, Ystar));
+    return rcpp_result_gen;
+END_RCPP
+}
 // iterativeMortality
 SEXP iterativeMortality(SEXP rMj, SEXP radd, SEXP rw, SEXP rN, SEXP rYso, int rniter);
 RcppExport SEXP _mice_iterativeMortality(SEXP rMjSEXP, SEXP raddSEXP, SEXP rwSEXP, SEXP rNSEXP, SEXP rYsoSEXP, SEXP rniterSEXP) {
@@ -23,6 +38,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_mice_getStartM", (DL_FUNC) &_mice_getStartM, 5},
     {"_mice_iterativeMortality", (DL_FUNC) &_mice_iterativeMortality, 6},
     {NULL, NULL, 0}
 };
