@@ -1,5 +1,5 @@
 
-getRecruitment = function(SSB, SSN, t, skeleton, groups) {
+getRecruitment = function(SSB, SSN, t, skeleton, groups, environment) {
 
   SSB = 1e-6*sapply(relist(SSB, skeleton), FUN=sum) # grams to tonnes
   SSN = sapply(relist(SSN, skeleton), FUN=sum) # total individuals, male + female
@@ -8,7 +8,8 @@ getRecruitment = function(SSB, SSN, t, skeleton, groups) {
 
   for(i in seq_along(groups)) {
 
-    R[i] = groups[[i]]$recruitment(biomass=SSB[i], abundance=SSN[i], t=t, par=groups[[i]])
+    R[i] = groups[[i]]$recruitment(biomass=SSB[i], abundance=SSN[i], t=t,
+                                   par=groups[[i]], environment=environment)
 
   } # end for groups
 
@@ -27,21 +28,37 @@ updateR = function(N, skeleton, R) {
 
 # Recruitment models ------------------------------------------------------
 
+
+rho = function(T, par) {
+  if(is.null(par[["Topt"]]))
+    stop("Optimal temperature value must be provided.") else Topt = par[["Topt"]]
+  if(is.null(par[["u"]])) u = 3 else u = par[["u"]]
+  if(is.null(par[["Ts"]])) Ts = 10 else Ts = par[["Ts"]]
+
+  out = pmax(1 - u^((T-Topt)-Ts/2) - u^(-(T-Topt)-Ts/2), 0)
+  return(out)
+}
+
+
+
 #' @export
-recruitment.ricker.spec = function(biomass, abundance, t, par) {
+recruitment.ricker.spec = function(biomass, abundance, t, par, environment) {
 
-  if(is.null(par$alpha)) stop("ricker model: alpha has not been provided.")
-  if(is.null(par$beta)) stop("ricker model: beta has not been provided.")
-  if(is.null(par$delta)) par$delta = 1
+  if(is.null(par[["alpha"]])) stop("ricker model: alpha has not been provided.")
+  if(is.null(par[["beta"]])) stop("ricker model: beta has not been provided.")
+  if(is.null(par[["delta"]])) par$delta = 1
 
-  R = par$alpha*(biomass^par$delta)*exp(-par$beta*biomass)
+  envVar = par$environment$recruitment
+  xrho = if(is.null(envVar)) 1 else rho(environment[[envVar]][t], par)
+
+  R = par$alpha*(biomass^par$delta)*exp(-par$beta*biomass)*xrho
 
   return(R)
 
 }
 
 #' @export
-recruitment.resource.spec = function(biomass, abundance, t, par) {
+recruitment.resource.spec = function(biomass, abundance, t, par, environment) {
 
   R = 1e6*par$biomass[t] # tonnes to grams
   if(is.na(R)) stop("Recruitment forcing not available for time t.")
@@ -50,7 +67,7 @@ recruitment.resource.spec = function(biomass, abundance, t, par) {
 }
 
 #' @export
-recruitment.forcing.spec = function(biomass, abundance, t, par) {
+recruitment.forcing.spec = function(biomass, abundance, t, par, environment) {
 
   R = par$recruits[t]
   if(is.na(R)) stop("Recruitment forcing not available for time t.")
@@ -59,9 +76,14 @@ recruitment.forcing.spec = function(biomass, abundance, t, par) {
 }
 
 #' @export
-recruitment.pups.spec = function(biomass, abundance, t, par) {
+recruitment.pups.spec = function(biomass, abundance, t, par, environment) {
 
-  R = 0.5*abundance*par$pups
+  if(is.null(par[["pups"]])) stop("pups model: pups number has not been provided.")
+
+  envVar = par$environment$recruitment
+  xrho = if(is.null(envVar)) 1 else rho(environment[[envVar]][t], par)
+
+  R = pmax(0.5*abundance*par$pups*(1-0.5*biomass/par$K)*xrho, 0)
   return(R)
 
 }
