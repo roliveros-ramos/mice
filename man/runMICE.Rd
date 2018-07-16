@@ -4,13 +4,16 @@
 \alias{runMICE}
 \title{Run a simulation of the MICE model}
 \usage{
-runMICE(groups, fleets, T, ndtPerYear = 4, Mstarv = 0.3, Ystar = 3.5,
-  delta = 0.9, par = NULL, Fmult = 1, niter = 7, verbose = TRUE)
+runMICE(groups, fleets, environment = NULL, T, ndtPerYear = 4,
+  Mstarv = 0.3, Ystar = 3.5, delta = 0.9, par = NULL, Fmult = 1,
+  prices = NULL, niter = 7, verbose = TRUE)
 }
 \arguments{
 \item{groups}{A list containing the information to create the functional groups. See details.}
 
 \item{fleets}{A list containing the information to create the fleets. See details.}
+
+\item{environment}{A list containing the environmental information. One value per time step is required.}
 
 \item{ndtPerYear}{Number of time steps per year.}
 
