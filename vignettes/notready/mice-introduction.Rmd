@@ -1,0 +1,123 @@
+---
+title: |
+       | Extending \rlang with C++:
+       | A Brief Introduction to Rcpp
+
+# Use letters for affiliations
+author:
+  - name: Dirk Eddelbuettel
+    affiliation: a
+  - name: James Joseph Balamuta
+    affiliation: b
+address:
+  - code: a
+    address: Debian and R Projects; Chicago, IL, USA; \url{edd@debian.org}
+  - code: b
+    address: Depts of Informatics and Statistics, Univ. of Illinois at Urbana-Champaign; Champaign, IL, USA; \url{balamut2@illinois.edu}
+
+# For footer text  TODO(fold into template, allow free form two-authors)
+lead_author_surname: Eddelbuettel and Balamuta
+
+# Place DOI URL or CRAN Package URL here
+doi: "https://cran.r-project.org/package=Rcpp"
+
+# Abstract
+abstract: |
+  \rlang has always provided an application programming interface (API) for extensions.
+  Based on the \clang language, it uses a number of macros and other low-level constructs
+
+
+# Acknowledgements
+acknowledgements: |
+  We thank Bob Rudis and Lionel Henry for excellent comments and suggestion on an earlier
+
+
+# One or more keywords
+keywords:
+  - applications and case studies
+  - statistical computing
+  - computationally intensive methods
+  - simulation
+
+# Bibliography
+bibliography: Rcpp
+
+# Enable a watermark on the document
+watermark: false
+
+# Customize footer, eg by referencing the vignette
+footer_contents: "Rcpp Vignette"
+
+# Produce a pinp document
+output: pinp::pinp
+
+# Local additiona of a few definitions we use
+header-includes: >
+  \newcommand{\TODO}{\marginnote{TODO}}
+  \newcommand{\rlang}{\textit{R }}
+  \newcommand{\rlangns}{\textit{R}}
+  \newcommand{\slang}{\textit{S }}
+  \newcommand{\rcpp}{\textit{Rcpp }}
+  \newcommand{\rcppns}{\textit{Rcpp}}
+  \newcommand{\clang}{\textit{C }}
+  \newcommand{\clangns}{\textit{C}}
+  \newcommand{\cpp}{\textit{C++ }}
+  \newcommand{\cppns}{\textit{C++}}
+  \newcommand{\fortran}{\textit{Fortran }}
+  \newcommand{\fortranns}{\textit{Fortran}}
+  \newcommand{\python}{\textit{Python}}
+  \newcommand{\julia}{\textit{Julia}}
+  \newcommand{\pkg}[1]{\textbf{#1}}
+
+vignette: >
+  %\VignetteIndexEntry{Rcpp-introduction}
+  %\VignetteKeywords{Rcpp, R, Cpp}
+  %\VignettePackage{Rcpp}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache=TRUE)
+library(Rcpp)
+```
+
+
+# Introduction
+
+The \rlang language and environment \citep{R:main} has established itself as
+both an increasingly dominant facility for data analysis, and the
+*lingua franca* for statistical computing in both research and
+application settings.
+
+
+## Background
+
+
+
+```{r evalCpp, eval=FALSE}
+library("Rcpp")
+evalCpp("2 + 2")
+```
+
+
+A graphical breakdown of all
+aspects of a corresponding \cpp function is given in Figure \ref{fig:cpp-function-annotation}.
+
+\begin{figure*}
+  \begin{center}
+    \includegraphics[width=5.5in]{figures/function_annotation_cpp.png}
+    \caption{Graphical annotation of the \texttt{is\_odd\_cpp} function.}
+    \label{fig:cpp-function-annotation}
+  \end{center}
+\end{figure*}
+
+When using \rcppns, such \cpp functions can be directly embedded and compiled in an \rlang
+script file through the use of the `cppFunction()` 
+
+
+
+# Conclusion
+
+\rlang has always provided mechanisms to extend it.  The bare-bones \clang API is already used
+
