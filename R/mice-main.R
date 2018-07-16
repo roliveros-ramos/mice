@@ -15,8 +15,6 @@
 #' @return A list with the abundance (N), length (L) and biomass (B) of
 #' all the species modeled.
 #' @export
-#'
-#' @examples
 runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
                    Mstarv = 0.3, Ystar = 3.5, delta = 0.9, par=NULL,
                    Fmult=1, prices=NULL, niter=7, verbose=TRUE) {
@@ -150,7 +148,7 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
 #' @return A table with the prey-predator sizes ratios.
 #' @export
 #'
-#' @examples
+#' @examples predPreyRatio(predType = c("planktivorous", "predacious"), Linf = 30, thr = 15)
 predPreyRatio = function(predType, Linf, thr=NULL, smallest=1e-1) {
 
   if(!is.null(thr)) {
@@ -161,7 +159,7 @@ predPreyRatio = function(predType, Linf, thr=NULL, smallest=1e-1) {
   }
 
   validTypes = c("piscivorous", "planktivorous", "predacious")
-  if(!all(predType %in% validType)) stop("Invalid predType.")
+  if(!all(predType %in% validTypes)) stop("Invalid predType.")
 
   nthr = c(smallest, thr, Linf)
   nstages = length(nthr) - 1
@@ -186,6 +184,8 @@ predPreyRatio = function(predType, Linf, thr=NULL, smallest=1e-1) {
     output = cbind(output, out)
 
   }
+
+  colnames(output) = levels(cut(seq(0, Linf), breaks=c(0, thr, Linf)))
 
   return(output)
 
