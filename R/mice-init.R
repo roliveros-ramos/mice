@@ -246,6 +246,17 @@ initFleets = function(fleets, groups, ndtPerYear, T) {
 
 }
 
+# Initialization of the environmental variables
+
+checkEnvironment = function(environment, ndt) {
+
+  if(is.null(environment)) return(NULL)
+  if(!is.list(environment)) stop("The 'environment' argument must be a list.")
+  ll = sapply(environment, length)
+  if(any(ll!=ndt)) stop("You must provide one value per time step.")
+  return(environment)
+
+}
 
 # update Parameters -------------------------------------------------------
 
