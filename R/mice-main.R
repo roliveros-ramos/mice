@@ -16,13 +16,16 @@
 #' all the species modeled.
 #' @export
 runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
-                   Mstarv = 0.3, Ystar = 3.5, delta = 0.9, par=NULL,
-                   Fmult=1, prices=NULL, niter=7, verbose=TRUE) {
+                   par=NULL, Fmult=1, prices=NULL, eta_crit=0.57, niter=7,
+                   subDtPerYear=24, verbose=TRUE) {
 
   CPU.time = proc.time()
 
-  ndt = ndtPerYear*T # total number of simulated time steps
-  dt = 1/ndtPerYear # time step
+  ndt  = ndtPerYear*T # total number of simulated time steps
+  dt   = 1/ndtPerYear # time step
+  xndt = ceiling(subDtPerYear/ndtPerYear)
+  subDtPerYear = xndt*ndtPerYear
+  xdt  = 1/subDtPerYear
 
   time = seq(from=0, to=T, length=ndt+1)
 
@@ -41,66 +44,139 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
   types = sapply(groups, FUN="[", i="type")
 
   pop = initGroups(groups=groups, dt=dt)
-
   fsh = initFleets(fleets=fleets, groups=groups, ndtPerYear=ndtPerYear, T=T) # on annual scale or already on dt? F$total?
 
   Ft = getFishingMortality(fsh, pop)
-
-  access = getAccessibility(pop=pop, groups=groups)
+  dietMatrix = getDietMatrix(pop=pop, groups=groups)
 
   skeleton = .getSkeleton(pop, what=2)
 
+  isResource = which(.getVar(pop, "type") == "resource")
+
   N0 = .getVar(pop, "N")
   L0 = .getVar(pop, "size")
-  w_ssb = .getVar(pop, "ssb")
-  isMature = .getVar(pop, "mature")
-  w = .getVar(pop, "w_mean") # make it dynamic
-  Mold = .getVar(pop, "Mold")*dt
+  dL = .getVar(pop, "dL")
+  # length-weight
+  a  = .getVar(pop, "a")
+  b  = .getVar(pop, "b")
 
-  N = matrix(nrow=length(N0), ncol=ndt+1) # abundance
-  C = matrix(nrow=length(N0), ncol=ndt) # catch (number)
-  L = matrix(nrow=length(L0), ncol=ndt+1) # length
-  B = matrix(NA, nrow=ndt+1, ncol=length(skeleton))
+  egg_size = getEggSize(pop)
+  egg_tl   = getEggTL(pop)
+
+  Ystar = .getVar(pop, "Ystar")
+  delta = .getVar(pop, "delta")
+
+  w_ssb    = .getVar(pop, "ssb")
+  isMature = .getVar(pop, "mature")
+  w_mean   = .getVar(pop, "w_mean") # make it dynamic
+  Madd     = .getVar(pop, "Mold") + .getVar(pop, "Mb")
+  Mstarv   = .getVar(pop, "Mstarv")
+
+  tl       = .getVar(pop, "TL") # initial TL for resources only
+
+  No = matrix(nrow=length(N0), ncol=ndt+1)                   # abundance (start)
+  Lo = matrix(nrow=length(L0), ncol=ndt+1)                   # length (start)
+
+  N = matrix(nrow=length(N0), ncol=ndt+1)                   # abundance
+  L = matrix(nrow=length(L0), ncol=ndt+1)                   # length
+
+  C = matrix(nrow=length(N0), ncol=ndt)                     # catch (number)
+  Bage = matrix(nrow=length(N0), ncol=ndt)                  # Biomass by age
+
+  TL = matrix(nrow=length(N0), ncol=ndt)                    # Trophic level
+
+  B = matrix(NA_real_, nrow=ndt, ncol=length(skeleton))   # biomass
+  Y = matrix(NA_real_, nrow=ndt, ncol=length(skeleton))   # biomass
+
+  CatchbyFleet        = array(dim=c(length(N0), length(fleets), ndt)) # catch (number)
+  CatchbyFleetByGroup = array(dim=c(length(groups), length(fleets), ndt)) # catch (number)
 
   Fmult = matrix(Fmult, nrow=length(L0), ncol=length(Fmult), byrow=TRUE)
 
-  CatchbyFleet = array(dim=c(length(N0), length(fleets), ndt)) # catch (number)
-  CatchbyFleetByGroup = array(dim=c(ndt, length(groups), length(fleets))) # catch (number)
+  No[, 1] = N0 # init numbers at the beginning of time step
+  Lo[, 1] = L0 # init size at the beginning of the time step
 
-  N[, 1] = N0
-  L[, 1] = L0
-  B[1, ] = getBiomass(N[, 1], w, skeleton)
+  # B[1, ] = getBiomass(N[, 1], w, skeleton)
+
+  access = array(dim = c(length(L0), length(L0), xndt))
+  for(s in seq_len(xndt)) {
+    psize = L0 + cbind((s-1)*dL, s*dL)/xndt
+    access[,, s] = getAccessibility(size=psize, pop=pop, dietMatrix=dietMatrix)
+  }
+
+  if(isTRUE(verbose)) pb = txtProgressBar(style=3)
 
   for(t in seq_len(ndt)) {
 
-    if(isTRUE(verbose)) {
-      pb = txtProgressBar(style=3)
-      setTxtProgressBar(pb, (t-1)/ndt)
+    if(isTRUE(verbose)) setTxtProgressBar(pb, (t-1)/ndt)
+
+    Nx = matrix(nrow=length(N0), ncol=xndt+1) # abundance for subdt
+    Lx = matrix(nrow=length(L0), ncol=xndt+1) # length for subdt
+    Bx = matrix(nrow=length(L0), ncol=xndt+1) # length for subdt
+
+    Cx = matrix(nrow=length(N0), ncol=xndt)
+    Yx = matrix(nrow=length(N0), ncol=xndt)
+
+    preyed = matrix(0, nrow=length(N0), ncol=length(N0))
+
+    Nx[, 1] = No[, t]
+    Lx[, 1] = Lo[, t]
+    Bx[, 1] = No[, t]*a*Lo[, t]^b
+
+    for(s in seq_len(xndt)) { # for predation and growth
+
+      Fst = Fmult*getSelectivity(L=Lx[, s], fleets=fsh)*Ft[, , t]
+      F   = rowSums(Fst) # annual rate
+
+      size05 = Lx[, s] + 0.5*dL/xndt # mid-step length
+      w05    = a*size05^b # mid-step weight
+      mort = calculateMortality(N=Nx[, s], F=F, add=Madd, Mstarv=Mstarv, w=w05,
+                                access=access[, , s],
+                                dt=xdt, Ystar=Ystar, delta=delta,
+                                eta_crit=eta_crit, niter=niter)
+      # M  = rowSums(mort$M)
+      # Ms = Mstarv*mort$starv
+      # Z  = M + Ms + Madd + F
+      # deaths = Nx[, s]*(1-exp(-Z*xdt))
+
+      Z      = mort$Z
+      deaths = mort$deaths
+
+      # preyed = preyed + ((w05*deaths/Z)*mort$M)
+      preyed = preyed + mort$preyed
+
+      Nx[, s+1] = Nx[, s] - deaths # abundance at the end of sub-dt
+      Lx[, s+1] = Lx[, s] + dL/xndt # length at the end of sub-dt
+      Bx[, s+1] = Nx[, s+1]*a*Lx[, s+1]^b # biomass at the end of sub-dt
+
+      Cx[, s]   = deaths*F/Z # catch during sub-dt
+      Yx[, s]   = Cx[, s]*w05 # catch during sub-dt
+
+      # CatchbyFleet[, , t] = deaths*Fst/Z
+      # CatchbyFleetByGroup[, , t] = rowsum(CatchbyFleet[, , t], group=.getVar(pop, "name"), reorder=FALSE)
+
     }
 
-    Fst = Fmult*getSelectivity(L=L[, t], fleets=fsh)*Ft[, , t]*dt
-    F = rowSums(Fst)
-    mort = calculateMortality(N=N[, t], add=F+Mold, w=w, access=access,
-                              dt=dt, Ystar=Ystar, delta=delta, niter=niter)
-    M  = rowSums(mort$M)
-    Ms = Mstarv*mort$starv
-    Z = M + Ms + Mold + F
-    deaths = N[, t]*(1-exp(-Z))
-    C[, t]   = updateC(deaths*F/Z)
-    CatchbyFleet[, , t] = deaths*Fst/Z
-    CatchbyFleetByGroup[t,,] = rowsum(CatchbyFleet[, , t],
-                                      group=.getVar(pop, "name"))
-    N[, t+1] = updateN(N[, t]*exp(-Z), skeleton=skeleton, plus=FALSE)
-    if(any(N[,t]<0)) {
-      print(t)
-    }
-    SSB = w_ssb*N[, t+1]
-    SSN = isMature*N[, t+1]
-    R = getRecruitment(SSB=SSB, SSN=SSN, t=t, skeleton=skeleton,
-                       groups=groups, environment=environment)
-    N[, t+1] = updateR(N[, t+1], skeleton=skeleton, R)
-    L[, t+1] = updateL(L0)
-    B[t+1, ] = getBiomass(N[, t+1], w, skeleton=skeleton)
+    TL[, t] = calculateTL(preyed, tl, isResource, t)
+    tl      = updateTL(TL=TL[, t], skeleton=skeleton, egg_tl=egg_tl)
+
+    C[, t] = rowSums(Cx)
+
+    bio = getBiomass(Bx, skeleton=skeleton)
+    Bage[, t] = bio$Bage
+
+    B[t, ] = bio$B  # biomass by functional group
+    Y[t, ] = 1e-6*rowsum(rowSums(Yx), group=.getVar(pop, "name"), reorder = FALSE)
+
+    # reproduction
+    SSB = Nx[, xndt]*w_ssb     # abundance at the end (instantaneous reproduction)
+    SSN = Nx[, xndt]*isMature
+    R   = getRecruitment(SSB=SSB, SSN=SSN, t=t, skeleton=skeleton, groups=groups,
+                         environment=environment)
+
+    # save state variables
+    No[, t+1] = updateN(Nx[, xndt], skeleton=skeleton, recruits=R, plus=FALSE) # reproduction
+    Lo[, t+1] = updateL(Lx[, xndt], skeleton=skeleton, egg_size=egg_size)
 
   }
 
@@ -111,7 +187,6 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
 
   # post-processing outputs
 
-  Y = t(rowsum(1e-6*C*w, group=.getVar(pop, "name"))) # grams to tonnes
 
   colnames(Y) = colnames(B) = sapply(groups, FUN="[[", i="name")
 
@@ -127,7 +202,11 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
 
   if(isTRUE(verbose)) message(sprintf("\nModel run time: %0.1f seconds.", CPU.time[3]))
 
-  raw = list(N=N, L=L, C=C, CatchbyFleet=CatchbyFleet,
+  # temp
+  N = No
+  L = Lo
+
+  raw = list(N=N, L=L, C=C, TL=TL, Bage=Bage, CatchbyFleet=CatchbyFleet,
              CatchbyFleetByGroup=CatchbyFleetByGroup)
   out = list(B=B, Y=Y, tcb=tcb, value=value, raw=raw, CPU.time=CPU.time, time=time, groupTypes=types)
 
@@ -192,26 +271,8 @@ predPreyRatio = function(predType, Linf, thr=NULL, smallest=1e-1) {
 }
 
 
-
 # Methods for main class --------------------------------------------------
 
-#' @export
-plot.mice.model = function(x, skip=0, ...) {
 
-  sim = x
-  nr = sum(sim$groupTypes == "resource")
-  ns = ncol(sim$B) - nr
-  ind = sim$time > skip
-  par(mfrow=c(ns,1), mar=c(0,0,0,0), oma=c(3,4,1,4))
-  for(i in seq_len(ns)) {
-    icol =if(i!=7) i else 10
-    plot(sim$time[ind], 1e-3*sim$B[ind,i+nr], col=icol, axes=FALSE, type="l")
-    axis(2*((i+1)%%2+1), las=1); box()
-    mtext(toupper(colnames(sim$B)[i+nr]), 3, adj=0.95, line=-1, cex=0.5, col=icol)
-  }
-  axis(1)
-  return(invisible())
-
-}
 
 

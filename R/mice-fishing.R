@@ -34,7 +34,7 @@ getFishingMortality = function(fsh, pop) {
 # TO_DO: parameter check
 
 #' @export
-selectivity.logistic.spec = function(x, par, tiny=1e-6) {
+selectivity.logistic.spec = function(x, par, tiny=1e-5) {
 
   L50 = par$L50
   L75 = par$L75
