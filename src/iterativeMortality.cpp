@@ -2,15 +2,17 @@
 using namespace Rcpp;
 
 // [[Rcpp::export]]
-SEXP iterativeMortality(SEXP rMj, SEXP radd, SEXP rw, SEXP rN, SEXP rYso, int rniter)
+List iterativeMortality(NumericMatrix Mj, NumericVector add, NumericVector w,
+                        NumericVector N, NumericVector Yso, int niter)
 {
 
-  NumericMatrix Mj(rMj);
-  NumericVector add(radd);
-  NumericVector w(rw);
-  NumericVector N(rN);
-  NumericVector Yso(rYso);
-  int niter = rniter;
+  //NumericMatrix Mj(rMj);
+  //NumericVector add(radd);
+  //NumericVector w(rw);
+  //NumericVector N(rN);
+  //NumericVector Yso(rYso);
+  //int niter = rniter;
+
   int nrow = Mj.nrow();
   int ncol = Mj.ncol();
 
