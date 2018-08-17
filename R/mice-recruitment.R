@@ -17,14 +17,7 @@ getRecruitment = function(SSB, SSN, t, skeleton, groups, environment) {
 
 }
 
-updateR = function(N, skeleton, R) {
 
-  N = relist(N, skeleton)
-  for(i in seq_along(N)) N[[i]][1] = R[i]
-  out = c(unlist(N))
-
-  return(out)
-}
 
 # Recruitment models ------------------------------------------------------
 
@@ -46,12 +39,12 @@ recruitment.ricker.spec = function(biomass, abundance, t, par, environment) {
 
   if(is.null(par[["alpha"]])) stop("ricker model: alpha has not been provided.")
   if(is.null(par[["beta"]])) stop("ricker model: beta has not been provided.")
-  if(is.null(par[["delta"]])) par$delta = 1
+  if(is.null(par[["gamma"]])) par$gamma = 1
 
   envVar = par$environment$recruitment
   xrho = if(is.null(envVar)) 1 else rho(environment[[envVar]][t], par)
 
-  R = par$alpha*(biomass^par$delta)*exp(-par$beta*biomass)*xrho
+  R = par$alpha*(biomass^par$gamma)*exp(-par$beta*biomass)*xrho
 
   return(R)
 
