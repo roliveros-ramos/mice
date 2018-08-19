@@ -1,7 +1,7 @@
 
 # Initialization of Functional Groups -------------------------------------
 
-checkGroups = function(groups, ndt) {
+checkGroups = function(groups, ndtPerYear, subDtPerYear, T) {
 
   groupNames = sapply(groups, FUN = "[[", i="name")
   names(groups) = groupNames
@@ -16,15 +16,15 @@ checkGroups = function(groups, ndt) {
 
     # check for resources
     if(groups[[i]]$type=="resource") {
-      if(is.null(groups[[i]]$biomass))
-        stop("Biomass for each resource must be provided.")
-      if(length(groups[[i]]$biomass)==1) {
-        groups[[i]]$biomass = rep(groups[[i]]$biomass, ndt)
-      }
-      if(length(groups[[i]]$biomass)!=ndt)
-        stop("One resource biomass value for every time step or a single one must be provided.")
 
+      groups[[i]]$biomass = .checkResourceBiomass(groups[[i]]$biomass,
+                                                  ndtPerYear, subDtPerYear, T)
       groups[[i]]$recruitment = "resource"
+
+      ngroups = groups[[i]]$ngroups
+      if(is.null(ngroups)) groups[[i]]$ngroups = 5
+
+      groups[[i]]$TL = .checkTL(groups[[i]]$TL)
 
     } # end of check for resources
 
@@ -123,6 +123,8 @@ initGroups = function(groups, dt) {
   # out$group = par$group
   out$type = par$type
 
+  class(out) = c("mice_species", class(out))
+
   return(out)
 }
 
@@ -130,10 +132,18 @@ initGroups = function(groups, dt) {
 
   B0 = par$biomass[1]*1e6 # tonnes -> g
 
-  out = data.frame(name=par$name, age=0, stringsAsFactors=FALSE)
+  ngroups = par$ngroups
 
-  L1 = par$size_min    # t=t
-  L2 = par$size_max # t=t+dt
+  age = rep(0, ngroups)
+
+  out = data.frame(name=par$name, age=age, stringsAsFactors=FALSE)
+
+  logSize = log10(c(par$size_min, par$size_max))
+
+  L = 10^seq(from=logSize[1], to=logSize[2], length=ngroups+1)
+
+  L1 = head(L, -1)
+  L2 = tail(L, -1)
 
   out$size = (L1+L2)/2 # size at t
   out$w    = 1 # weight at t
@@ -148,7 +158,7 @@ initGroups = function(groups, dt) {
   out$s_min = L1 # lower threshold for prey size
   out$s_max = L2 # upper threshold for prey size
 
-  out$N = B0
+  out$N = B0/ngroups # biomass is constant in log-space bin size (Sheldon, 1972).
   out$mature = 0
   out$ssb = 0
   out$psize_min = -1 # prey upon with mean length
@@ -162,10 +172,19 @@ initGroups = function(groups, dt) {
   out$Ystar  = 0
   out$delta  = if(is.null(par$delta)) 0.99999999 else par$delta
 
-  out$TL = par$TL
-  out$egg_tl = par$TL
+  TL = par$TL
+  Dn = diff(TL)
+  eta = 0.1
+  i = seq_len(ngroups+1)-1
+  Di = (log((eta^Dn -1)*i + ngroups) - log(ngroups))/log(eta)
+  TLi = TL[1] + Di
+  out$TL = TLi[-1] - diff(TLi)/2
+  out$egg_tl = out$TL[1]
 
   out$type = par$type
+
+  class(out) = c("mice_resources", class(out))
+
   return(out)
 }
 
@@ -321,6 +340,20 @@ updateParameters = function(target, par) {
 
 # Trophic level -----------------------------------------------------------
 
+.checkTL = function(TL) {
+
+  if(is.null(TL)) stop("TL must be provided for resources.")
+  if(length(TL)>2) stop("TL must be a vector of length 2 (min and max TL).")
+  if(length(TL)==1) TL = rep(TL, 2)
+  if(TL[1]>TL[2]) stop("min TL is greater than max TL.")
+  if(TL[1]==1 & TL[2]!=1) {
+    TL[2]=1
+    warning("Autotroph group, ignoring max TL.")
+    }
+  return(TL)
+
+}
+
 initialTL = function(preyed, tl) {
 
   maxit = 100
@@ -366,7 +399,7 @@ calculateTL = function(preyed, tl, isResource, t) {
   tlp = tl*preyed
   TL = colSums(tlp, na.rm=TRUE) + 1
   TL[TL==1] = tl[TL==1] # if no prey, keep last TL.
-  TL[isResource] = tl[isResource]
+  TL[isResource] = tl[isResource] # keep constant resources' TL
 
   return(TL)
 

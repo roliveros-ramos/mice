@@ -53,6 +53,7 @@ recruitment.ricker.spec = function(biomass, abundance, t, par, environment) {
 #' @export
 recruitment.resource.spec = function(biomass, abundance, t, par, environment) {
 
+  return(0)
   R = 1e6*par$biomass[t] # tonnes to grams
   if(is.na(R)) stop("Recruitment forcing not available for time t.")
   return(R)
