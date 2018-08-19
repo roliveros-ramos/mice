@@ -28,6 +28,10 @@ calculateMortality = function(N, F, add, Mstarv, w, access, dt,
 
 getYso = function(N, w, dt, Ystar=3.5) Ystar*w*N*dt
 
+getDeltaBar = function(delta, n) 1 - (1-delta)^(1/n)
+
+# Mortality models --------------------------------------------------------
+
 
 #' @export
 mortality.senecence.spec = function(x, par, tiny=1e-6) {

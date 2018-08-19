@@ -21,6 +21,7 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
 
   CPU.time = proc.time()
 
+  # time step calculations
   ndt  = ndtPerYear*T # total number of simulated time steps
   dt   = 1/ndtPerYear # time step
   xndt = ceiling(subDtPerYear/ndtPerYear)
@@ -29,7 +30,9 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
 
   time = seq(from=0, to=T, length=ndt+1)
 
-  groups = checkGroups(groups, ndt=ndt) # TO_DO: check, set defaults
+  groups = checkGroups(groups, ndtPerYear=ndtPerYear,
+                       subDtPerYear=subDtPerYear, T=T) # TO_DO: check, set defaults
+
   if(!is.null(par)) groups = updateParameters(groups, par)
 
   fleets = checkFleets(fleets) # TO_DO: check, set defaults
@@ -42,9 +45,11 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
   # if(!is.null(par)) environment = updateParameters(environment, par)
 
   types = sapply(groups, FUN="[", i="type")
+  isResourceGroup = (types == "resource")
 
   pop = initGroups(groups=groups, dt=dt)
   fsh = initFleets(fleets=fleets, groups=groups, ndtPerYear=ndtPerYear, T=T) # on annual scale or already on dt? F$total?
+  resources = getResources(groups=groups)
 
   Ft = getFishingMortality(fsh, pop)
   dietMatrix = getDietMatrix(pop=pop, groups=groups)
@@ -64,7 +69,7 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
   egg_tl   = getEggTL(pop)
 
   Ystar = .getVar(pop, "Ystar")
-  delta = .getVar(pop, "delta")
+  delta = getDeltaBar(.getVar(pop, "delta"), xndt)
 
   w_ssb    = .getVar(pop, "ssb")
   isMature = .getVar(pop, "mature")
@@ -125,37 +130,39 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
 
     for(s in seq_len(xndt)) { # for predation and growth
 
-      Fst = Fmult*getSelectivity(L=Lx[, s], fleets=fsh)*Ft[, , t]
+      step = (t-1)*xndt + s
+
+      size05 = Lx[, s] + 0.5*dL/xndt  # mid-step length
+      w05    = a*size05^b             # mid-step weight
+
+      Fst = Fmult*getSelectivity(L=size05, fleets=fsh)*Ft[, , t]
       F   = rowSums(Fst) # annual rate
 
-      size05 = Lx[, s] + 0.5*dL/xndt # mid-step length
-      w05    = a*size05^b # mid-step weight
       mort = calculateMortality(N=Nx[, s], F=F, add=Madd, Mstarv=Mstarv, w=w05,
-                                access=access[, , s],
-                                dt=xdt, Ystar=Ystar, delta=delta,
-                                eta_crit=eta_crit, niter=niter)
-      # M  = rowSums(mort$M)
-      # Ms = Mstarv*mort$starv
-      # Z  = M + Ms + Madd + F
-      # deaths = Nx[, s]*(1-exp(-Z*xdt))
+                                access=access[, , s], dt=xdt,
+                                Ystar=Ystar, delta=delta, eta_crit=eta_crit,
+                                niter=niter)
 
       Z      = mort$Z
       deaths = mort$deaths
-
-      # preyed = preyed + ((w05*deaths/Z)*mort$M)
       preyed = preyed + mort$preyed
 
-      Nx[, s+1] = Nx[, s] - deaths # abundance at the end of sub-dt
-      Lx[, s+1] = Lx[, s] + dL/xndt # length at the end of sub-dt
-      Bx[, s+1] = Nx[, s+1]*a*Lx[, s+1]^b # biomass at the end of sub-dt
-
-      Cx[, s]   = deaths*F/Z # catch during sub-dt
-      Yx[, s]   = Cx[, s]*w05 # catch during sub-dt
+      # abundance at the end of sub-dt
+      Nx[, s+1] = Nx[, s] - deaths
+      Nx[, s+1] = updateResources(Nx[, s+1], resources[, step], isResource)
+      # length at the end of sub-dt
+      Lx[, s+1] = Lx[, s] + dL/xndt
+      # biomass at the end of sub-dt
+      Bx[, s+1] = Nx[, s+1]*a*Lx[, s+1]^b
+      # catch during sub-dt
+      Cx[, s]   = deaths*F/Z
+      # yield during sub-dt
+      Yx[, s]   = Cx[, s]*w05
 
       # CatchbyFleet[, , t] = deaths*Fst/Z
       # CatchbyFleetByGroup[, , t] = rowsum(CatchbyFleet[, , t], group=.getVar(pop, "name"), reorder=FALSE)
 
-    }
+    } # end of sub-dt
 
     TL[, t] = calculateTL(preyed, tl, isResource, t)
     tl      = updateTL(TL=TL[, t], skeleton=skeleton, egg_tl=egg_tl)
@@ -175,10 +182,11 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
                          environment=environment)
 
     # save state variables
-    No[, t+1] = updateN(Nx[, xndt], skeleton=skeleton, recruits=R, plus=FALSE) # reproduction
+    No[, t+1] = updateN(Nx[, xndt], skeleton=skeleton, recruits=R,
+                        plus=FALSE, isResource=isResourceGroup) # reproduction
     Lo[, t+1] = updateL(Lx[, xndt], skeleton=skeleton, egg_size=egg_size)
 
-  }
+  } # end of t timestep
 
   if(isTRUE(verbose)) {
     pb = txtProgressBar(style=3)
