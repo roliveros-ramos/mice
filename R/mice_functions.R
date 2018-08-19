@@ -14,6 +14,7 @@
   for(i in seq_along(pop)) {
     out[[i]] = pop[[i]][[what]]
     out[[i]][] = NA
+    class(out[[i]]) = class(pop[[i]])[1]
   }
   out = as.relistable(out)
   return(out)
@@ -123,7 +124,7 @@ getAccessibility = function(size, pop, dietMatrix) {
 #   return(out)
 # }
 
-updateN = function(N, skeleton, recruits, plus) {
+updateN = function(N, skeleton, recruits, plus, isResource) {
 
   N[N<1] = 0
   N = relist(N, skeleton)
@@ -136,7 +137,13 @@ updateN = function(N, skeleton, recruits, plus) {
     return(nTmp)
   }
 
-  for(i in seq_along(N)) N[[i]] = .updateN(x=N[[i]], R=recruits[i], plus=plus)
+  for(i in seq_along(N)) {
+
+    tmp = N[[i]]
+    if(isResource[i]) next
+    N[[i]] = .updateN(x=tmp, R=recruits[i], plus=plus)
+
+  }
 
   out = c(unlist(N))
 
@@ -152,7 +159,13 @@ updateL = function(L, skeleton, egg_size) {
     return(c(egg_size, head(x, -1)))
   }
 
-  for(i in seq_along(L)) L[[i]] = .updateL(x=L[[i]], egg_size=egg_size[i])
+  for(i in seq_along(L)) {
+
+    tmp = L[[i]]
+    if(inherits(tmp, "mice_resources")) next
+    L[[i]] = .updateL(x=L[[i]], egg_size=egg_size[i])
+
+  }
 
   out = c(unlist(L))
 
@@ -169,7 +182,13 @@ updateTL = function(TL, skeleton, egg_tl) {
     return(c(egg_tl, head(x, -1)))
   }
 
-  for(i in seq_along(TL)) TL[[i]] = .updateTL(x=TL[[i]], egg_tl=egg_tl[i])
+  for(i in seq_along(TL)) {
+
+    tmp = TL[[i]]
+    if(inherits(tmp, "mice_resources")) next
+    TL[[i]] = .updateTL(x=TL[[i]], egg_tl=egg_tl[i])
+
+  }
 
   out = c(unlist(TL))
 
