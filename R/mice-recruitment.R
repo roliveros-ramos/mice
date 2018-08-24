@@ -8,8 +8,9 @@ getRecruitment = function(SSB, SSN, t, skeleton, groups, environment) {
 
   for(i in seq_along(groups)) {
 
-    R[i] = groups[[i]]$recruitment(biomass=SSB[i], abundance=SSN[i], t=t,
-                                   par=groups[[i]], environment=environment)
+    season = groups[[i]]$recruitmentSeasonality[t]
+    R[i]   = season*groups[[i]]$recruitment(biomass=SSB[i], abundance=SSN[i], t=t,
+                                            par=groups[[i]], environment=environment)
 
   } # end for groups
 
