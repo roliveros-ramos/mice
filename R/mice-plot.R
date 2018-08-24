@@ -4,12 +4,19 @@ plot.mice.model = function(x, skip=0, ...) {
 
   sim = x
   xtime = sim$time[-1] - 0.5*diff(sim$time)[1]
+  year = ceiling(sim$time[-1])
   nr = sum(sim$groupTypes == "resource")
   ns = ncol(sim$B) - nr
   ind = xtime > skip
   par(mfrow=c(ns+1,1), mar=c(0,0,0,0), oma=c(3,4,1,4))
 
-  calculateTrophicEff(x, names.arg = NA)
+  TE = calculateTrophicEff(x)
+  ylim = c(0, 1.3*max(TE, na.rm=TRUE))
+  matplot(x=unique(year)+0.5, TE, type="l", lty=1, axes=FALSE, ylim=ylim)
+  mtext(toupper("Trophic Efficiency"), 3, adj=0.05, line=-1, cex=0.5)
+  abline(h=0.10, lty=3)
+  axis(4, las=1)
+  box()
 
   for(i in seq_len(ns)) {
     icol =if(i!=7) i else 10
@@ -32,47 +39,29 @@ plot.mice.model = function(x, skip=0, ...) {
 # Auxiliar functions ------------------------------------------------------
 
 
-calculateTrophicEff = function(object, plot=TRUE, names.arg=NULL) {
 
-  # B(TL) = B(1)*eff^(TL-1)
-  # log B(TL) = log B(TL=1) + (TL-1)*log(eff)
-  # y = log B(TL)
-  # x = TL - 1
-  # y = log B(1) + log(eff)*x
+calculateTrophicEff = function(object) {
 
-  x = as.numeric(object$raw$TL)
-  y = object$raw$Bage
-
-  xd = cut(x, breaks=1:6, labels = FALSE, include.lowest = TRUE)
-
-  yx = tapply(y, xd, sum)
-  xm = as.numeric(names(yx)) - 1
-  ym = as.numeric(log10(yx))
-  off = ym[1]
-  ym = ym - off
-  # how to better approximate the efficiency?
-  mod = lm(ym ~ xm + 0)
-  eff = 10^(coef(mod)[1])
-  msg = sprintf("TE = %02.02f%%", 100*eff)
-  if(plot) {
-    # plot(xm,ym, xlab="TL", ylab="log(biomass)", las=1,
-    #      pch=19, axes=FALSE)
-    # abline(mod, col="red", lwd=2)
-    # abline(c(0, log(0.1)), col="blue", lty=2)
-    # mtext(msg, 3, adj=0.95, line=-2)
-    # axis(1, at=axTicks(1), labels = axTicks(1)+1)
-    # t2 = round(axTicks(2)+off)
-    # axis(2, las=1, at=t2-off, labels = t2)
-    # box()
-
-    barplot(yx/yx[1], ylim=c(0,1.2), names.arg=names.arg, las=1)
-    mtext(msg, 3, adj=0.95, line=-2)
-
+  .calculateTE = function(TL, biomass) {
+    x = as.numeric(TL)
+    y = as.numeric(biomass)
+    xd = cut(x, breaks=1:6, labels = FALSE, include.lowest = TRUE)
+    yx = tapply(y, xd, sum)
+    ye = exp(diff(log(yx)))
+    te = setNames(rep(NA, 4), 2:5)
+    te[names(ye)] = ye
+    return(te)
   }
 
-  names(eff) = NULL
+  year = ceiling(object$time[-1])
+  TE = matrix(nrow=length(unique(year)), ncol=4)
+  for(i in unique(year)) {
+    iYear = which(year==i)
+    TE[i, ] = .calculateTE(TL=object$raw$TL[, iYear],
+                           biomass=object$raw$Bage[, iYear])
+  }
 
-  cat(msg, "\n")
+  return(TE)
 
 }
 
