@@ -17,7 +17,7 @@
 #' @export
 runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
                    par=NULL, Fmult=1, prices=NULL, eta_crit=0.57, niter=7,
-                   subDtPerYear=24, verbose=TRUE) {
+                   subDtPerYear=24, verbose=TRUE, pop=NULL) {
 
   CPU.time = proc.time()
 
@@ -32,7 +32,6 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
 
   groups = checkGroups(groups, ndtPerYear=ndtPerYear,
                        subDtPerYear=subDtPerYear, T=T) # TO_DO: check, set defaults
-
   if(!is.null(par)) groups = updateParameters(groups, par)
 
   fleets = checkFleets(fleets) # TO_DO: check, set defaults
@@ -47,7 +46,7 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
   types = sapply(groups, FUN="[", i="type")
   isResourceGroup = (types == "resource")
 
-  pop = initGroups(groups=groups, dt=dt)
+  pop = if(is.null(pop)) initGroups(groups=groups, dt=dt) else pop
   fsh = initFleets(fleets=fleets, groups=groups, ndtPerYear=ndtPerYear, T=T) # on annual scale or already on dt? F$total?
   resources = getResources(groups=groups)
 
@@ -133,7 +132,7 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
       step = (t-1)*xndt + s
 
       size05 = Lx[, s] + 0.5*dL/xndt  # mid-step length
-      w05    = a*size05^b             # mid-step weight
+      w05    = a*size05^b             # mid-step weight, improve formula
 
       Fst = Fmult*getSelectivity(L=size05, fleets=fsh)*Ft[, , t]
       F   = rowSums(Fst) # annual rate
@@ -176,15 +175,15 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
     Y[t, ] = 1e-6*rowsum(rowSums(Yx), group=.getVar(pop, "name"), reorder = FALSE)
 
     # reproduction
-    SSB = Nx[, xndt]*w_ssb     # abundance at the end (instantaneous reproduction)
-    SSN = Nx[, xndt]*isMature
+    SSB = Nx[, xndt+1]*w_ssb     # abundance at the end (instantaneous reproduction)
+    SSN = Nx[, xndt+1]*isMature
     R   = getRecruitment(SSB=SSB, SSN=SSN, t=t, skeleton=skeleton, groups=groups,
                          environment=environment)
 
     # save state variables
-    No[, t+1] = updateN(Nx[, xndt], skeleton=skeleton, recruits=R,
+    No[, t+1] = updateN(Nx[, xndt+1], skeleton=skeleton, recruits=R,
                         plus=FALSE, isResource=isResourceGroup) # reproduction
-    Lo[, t+1] = updateL(Lx[, xndt], skeleton=skeleton, egg_size=egg_size)
+    Lo[, t+1] = updateL(Lx[, xndt+1], skeleton=skeleton, egg_size=egg_size, isResource=isResourceGroup)
 
   } # end of t timestep
 
@@ -194,6 +193,10 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
   }
 
   # post-processing outputs
+
+  pop = updatePopulation(pop, N=No[, t+1], L=Lo[, t+1], w=a*Lo[, t+1]^b, TL=tl)
+
+
 
 
   colnames(Y) = colnames(B) = sapply(groups, FUN="[[", i="name")
@@ -216,7 +219,8 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
 
   raw = list(N=N, L=L, C=C, TL=TL, Bage=Bage, CatchbyFleet=CatchbyFleet,
              CatchbyFleetByGroup=CatchbyFleetByGroup)
-  out = list(B=B, Y=Y, tcb=tcb, value=value, raw=raw, CPU.time=CPU.time, time=time, groupTypes=types)
+
+  out = list(B=B, Y=Y, tcb=tcb, value=value, raw=raw, pop=pop, CPU.time=CPU.time, time=time, groupTypes=types)
 
   class(out) = "mice.model"
 

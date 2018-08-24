@@ -150,7 +150,7 @@ updateN = function(N, skeleton, recruits, plus, isResource) {
   return(out)
 }
 
-updateL = function(L, skeleton, egg_size) {
+updateL = function(L, skeleton, egg_size, isResource) {
 
   L = relist(L, skeleton)
   if(length(egg_size)!=length(L)) stop("Egg size vector doesn't match functional groups number.")
@@ -162,7 +162,7 @@ updateL = function(L, skeleton, egg_size) {
   for(i in seq_along(L)) {
 
     tmp = L[[i]]
-    if(inherits(tmp, "mice_resources")) next
+    if(isResource[i]) next
     L[[i]] = .updateL(x=L[[i]], egg_size=egg_size[i])
 
   }
@@ -208,6 +208,26 @@ updateC = function(C) {
 #   return(B)
 #
 # }
+
+
+updatePopulation = function(pop, N, L, w, TL) {
+
+  skeleton = .getSkeleton(pop, what=2)
+  N = relist(N, skeleton)
+  L = relist(L, skeleton)
+  # w = relist(w, skeleton)
+  TL = relist(TL, skeleton)
+
+  for(i in seq_along(pop)) {
+    pop[[i]][["N"]] = N[[i]]
+    pop[[i]][["size"]] = L[[i]]
+    # pop[[i]][["w"]] = w[[i]]
+    pop[[i]][["TL"]] = TL[[i]]
+  }
+  return(pop)
+
+}
+
 
 getBiomass = function(B, skeleton) {
 
