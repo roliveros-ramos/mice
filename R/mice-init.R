@@ -5,6 +5,7 @@ checkGroups = function(groups, ndtPerYear, subDtPerYear, T) {
 
   groupNames = sapply(groups, FUN = "[[", i="name")
   names(groups) = groupNames
+  ndt = ndtPerYear*T
 
   for(i in seq_along(groups)) {
 
@@ -29,9 +30,22 @@ checkGroups = function(groups, ndtPerYear, subDtPerYear, T) {
     } # end of check for resources
 
     ## get recruitment function
-    recruitmentType = groups[[i]]$recruitment
+    recruitmentType = groups[[i]][["recruitment", exact=TRUE]]
 
     if(is.null(recruitmentType)) recruitmentType = "ricker"
+
+    # recruitment seasonality
+    recruitmentSeasonality = groups[[i]]$recruitmentSeasonality
+    if(is.null(recruitmentSeasonality))
+      recruitmentSeasonality = rep(1, ndtPerYear)/ndtPerYear
+    if(length(recruitmentSeasonality)==ndtPerYear) {
+      recruitmentSeasonality = recruitmentSeasonality/sum(recruitmentSeasonality)
+      recruitmentSeasonality = rep(recruitmentSeasonality, length=ndt)
+    }
+    if(length(recruitmentSeasonality)!=ndt)
+      stop(sprintf("Recruitment seasonality must be a vector of length %s or %s.", ndtPerYear, ndt))
+    if(anyNA(recruitmentSeasonality)) stop("Recruitment seasonality must not include NAs.")
+    groups[[i]]$recruitmentSeasonality = recruitmentSeasonality
 
     recruitmentModel = match.fun(paste("recruitment", recruitmentType, "spec", sep="."))
 
@@ -117,7 +131,7 @@ initGroups = function(groups, dt) {
   out$Ystar  = if(is.null(par$Ystar)) 3.5 else par$Ystar
   out$delta  = if(is.null(par$delta)) 0.9 else par$delta
 
-  out$TL = NA
+  out$TL = NA # test is 2 is a better initialization
   out$egg_tl = if(is.null(par$egg_tl)) 2 else par$egg_tl
 
   # out$group = par$group
