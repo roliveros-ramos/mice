@@ -17,7 +17,7 @@
 #' @export
 runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
                    par=NULL, Fmult=1, prices=NULL, eta_crit=0.57, niter=7,
-                   subDtPerYear=24, verbose=TRUE, pop=NULL) {
+                   subDtPerYear=24, verbose=TRUE, pop=NULL, resources=NULL) {
 
   CPU.time = proc.time()
 
@@ -31,7 +31,8 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
   time = seq(from=0, to=T, length=ndt+1)
 
   groups = checkGroups(groups, ndtPerYear=ndtPerYear,
-                       subDtPerYear=subDtPerYear, T=T) # TO_DO: check, set defaults
+                       subDtPerYear=subDtPerYear, T=T, resources=resources)
+  # TO_DO: check, set defaults
   if(!is.null(par)) groups = updateParameters(groups, par)
 
   fleets = checkFleets(fleets) # TO_DO: check, set defaults

@@ -1,11 +1,13 @@
 
 # Initialization of Functional Groups -------------------------------------
 
-checkGroups = function(groups, ndtPerYear, subDtPerYear, T) {
+checkGroups = function(groups, ndtPerYear, subDtPerYear, T, resources) {
 
   groupNames = sapply(groups, FUN = "[[", i="name")
   names(groups) = groupNames
   ndt = ndtPerYear*T
+
+  if(!is.null(resources)) groups = updateResourceBiomass(groups, resources)
 
   for(i in seq_along(groups)) {
 
@@ -345,6 +347,28 @@ updateParameters = function(target, par) {
     for(iName in gNames) {
       target[[iName]][parName] = par[[parName]][iName]
     }
+  }
+
+  return(target)
+
+}
+
+updateResourceBiomass = function(target, par) {
+
+  if(is.null(par)) return(target)
+
+  if(!is.list(par)) stop("par must be a list.")
+
+  gNames = names(par)
+  if(any(gNames=="")) stop("all 'resources' elements must be named.")
+
+  validNames = sapply(target, FUN = "[[", i="name")
+  gNames = gNames[which(gNames %in% validNames)]
+
+  if(length(gNames)==0) return(target)
+
+  for(iName in gNames) {
+    target[[iName]][["biomass"]] = par[[iName]]
   }
 
   return(target)

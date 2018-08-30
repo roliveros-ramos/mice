@@ -4,9 +4,9 @@
 \alias{runMICE}
 \title{Run a simulation of the MICE model}
 \usage{
-runMICE(groups, fleets, environment = NULL, T, ndtPerYear = 4,
-  Mstarv = 0.3, Ystar = 3.5, delta = 0.9, par = NULL, Fmult = 1,
-  prices = NULL, niter = 7, verbose = TRUE)
+runMICE(groups, fleets, environment = NULL, T, ndtPerYear = 4, par = NULL,
+  Fmult = 1, prices = NULL, eta_crit = 0.57, niter = 7,
+  subDtPerYear = 24, verbose = TRUE, pop = NULL, resources = NULL)
 }
 \arguments{
 \item{groups}{A list containing the information to create the functional groups. See details.}
@@ -17,12 +17,6 @@ runMICE(groups, fleets, environment = NULL, T, ndtPerYear = 4,
 
 \item{ndtPerYear}{Number of time steps per year.}
 
-\item{Mstarv}{Maximum starvation mortality.}
-
-\item{Ystar}{Optimal annual food ration per gram of biomass.}
-
-\item{delta}{Fraction of prey population available to predators.}
-
 \item{par}{A list with parameters values. These parameters take precedence over 'groups' and 'fleets'.}
 
 \item{Fmult}{Fishing multiplier. All the fishing mortalities are multiplied by this value.}
@@ -30,6 +24,12 @@ runMICE(groups, fleets, environment = NULL, T, ndtPerYear = 4,
 \item{niter}{Number of iterations for the calculation of predation mortality.}
 
 \item{verbose}{Logical, should running messages be produced?}
+
+\item{Mstarv}{Maximum starvation mortality.}
+
+\item{Ystar}{Optimal annual food ration per gram of biomass.}
+
+\item{delta}{Fraction of prey population available to predators.}
 }
 \value{
 A list with the abundance (N), length (L) and biomass (B) of
