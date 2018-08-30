@@ -2,7 +2,9 @@
 
 S3method(plot,mice.model)
 export("selectivity.knife-edge.spec")
+export(mortality.constant.spec)
 export(mortality.senecence.spec)
+export(plotAll)
 export(predPreyRatio)
 export(recruitment.forcing.spec)
 export(recruitment.pups.spec)
