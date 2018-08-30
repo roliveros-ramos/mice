@@ -58,6 +58,8 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
 
   isResource = which(.getVar(pop, "type") == "resource")
 
+  gNames = .getVar(pop, "name")
+
   N0 = .getVar(pop, "N")
   L0 = .getVar(pop, "size")
   dL = .getVar(pop, "dL")
@@ -79,31 +81,35 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
 
   tl       = .getVar(pop, "TL") # initial TL for resources only
 
-  No = matrix(nrow=length(N0), ncol=ndt+1)                   # abundance (start)
-  Lo = matrix(nrow=length(L0), ncol=ndt+1)                   # length (start)
+  nGroups = length(skeleton)
+  nSizeGroups = length(N0)
 
-  N = matrix(nrow=length(N0), ncol=ndt+1)                   # abundance
-  L = matrix(nrow=length(L0), ncol=ndt+1)                   # length
+  No = matrix(nrow=nSizeGroups, ncol=ndt+1)                  # abundance (start)
+  Lo = matrix(nrow=nSizeGroups, ncol=ndt+1)                  # length (start)
 
-  C = matrix(nrow=length(N0), ncol=ndt)                     # catch (number)
-  Bage = matrix(nrow=length(N0), ncol=ndt)                  # Biomass by age
+  N = matrix(nrow=nSizeGroups, ncol=ndt+1)                   # abundance
+  L = matrix(nrow=nSizeGroups, ncol=ndt+1)                   # length
 
-  TL = matrix(nrow=length(N0), ncol=ndt)                    # Trophic level
+  C    = matrix(nrow=nSizeGroups, ncol=ndt)                  # catch (number)
+  Bage = matrix(nrow=nSizeGroups, ncol=ndt)                  # Biomass by age
 
-  B = matrix(NA_real_, nrow=ndt, ncol=length(skeleton))   # biomass
-  Y = matrix(NA_real_, nrow=ndt, ncol=length(skeleton))   # biomass
+  TL = matrix(nrow=nSizeGroups, ncol=ndt)                    # Trophic level
 
-  CatchbyFleet        = array(dim=c(length(N0), length(fleets), ndt)) # catch (number)
-  CatchbyFleetByGroup = array(dim=c(length(groups), length(fleets), ndt)) # catch (number)
+  B = matrix(NA_real_, nrow=ndt, ncol=nGroups)     # biomass
+  Y = matrix(NA_real_, nrow=ndt, ncol=nGroups)     # yield
 
-  Fmult = matrix(Fmult, nrow=length(L0), ncol=length(Fmult), byrow=TRUE)
+  CatchbyFleet        = array(dim=c(nSizeGroups, length(fleets), ndt)) # catch (number)
+  YieldbyFleet        = array(dim=c(nSizeGroups, length(fleets), ndt)) # catch (number)
+  YieldbyFleetByGroup = array(dim=c(nGroups,     length(fleets), ndt)) # catch (number)
+
+  Fmult = matrix(Fmult, nrow=nSizeGroups, ncol=length(Fmult), byrow=TRUE)
 
   No[, 1] = N0 # init numbers at the beginning of time step
   Lo[, 1] = L0 # init size at the beginning of the time step
 
   # B[1, ] = getBiomass(N[, 1], w, skeleton)
 
-  access = array(dim = c(length(L0), length(L0), xndt))
+  access = array(dim = c(nSizeGroups, nSizeGroups, xndt))
   for(s in seq_len(xndt)) {
     psize = L0 + cbind((s-1)*dL, s*dL)/xndt
     access[,, s] = getAccessibility(size=psize, pop=pop, dietMatrix=dietMatrix)
@@ -115,14 +121,17 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
 
     if(isTRUE(verbose)) setTxtProgressBar(pb, (t-1)/ndt)
 
-    Nx = matrix(nrow=length(N0), ncol=xndt+1) # abundance for subdt
-    Lx = matrix(nrow=length(L0), ncol=xndt+1) # length for subdt
-    Bx = matrix(nrow=length(L0), ncol=xndt+1) # length for subdt
+    Nx = matrix(nrow=nSizeGroups, ncol=xndt+1) # abundance for subdt
+    Lx = matrix(nrow=nSizeGroups, ncol=xndt+1) # length for subdt
+    Bx = matrix(nrow=nSizeGroups, ncol=xndt+1) # length for subdt
 
-    Cx = matrix(nrow=length(N0), ncol=xndt)
-    Yx = matrix(nrow=length(N0), ncol=xndt)
+    Cx = matrix(nrow=nSizeGroups, ncol=xndt)
+    Yx = matrix(nrow=nSizeGroups, ncol=xndt)
 
-    preyed = matrix(0, nrow=length(N0), ncol=length(N0))
+    CatchbyFleetx        = array(dim=c(nSizeGroups, length(fleets), xndt)) # catch (number)
+    CatchbyFleetByGroupx = array(dim=c(nGroups,     length(fleets), xndt)) # catch (number)
+
+    preyed = matrix(0, nrow=nSizeGroups, ncol=nSizeGroups)
 
     Nx[, 1] = No[, t]
     Lx[, 1] = Lo[, t]
@@ -159,8 +168,9 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
       # yield during sub-dt
       Yx[, s]   = Cx[, s]*w05
 
-      # CatchbyFleet[, , t] = deaths*Fst/Z
-      # CatchbyFleetByGroup[, , t] = rowsum(CatchbyFleet[, , t], group=.getVar(pop, "name"), reorder=FALSE)
+      CatchbyFleetx[, , s] = deaths*Fst/Z
+      YieldbyFleetx[, , s] = CatchbyFleetx[, , s]*w05
+      YieldbyFleetByGroupx[, , s] = rowsum(YieldbyFleetx[, , x], group=gNames, reorder=FALSE)
 
     } # end of sub-dt
 
@@ -168,6 +178,10 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
     tl      = updateTL(TL=TL[, t], skeleton=skeleton, egg_tl=egg_tl)
 
     C[, t] = rowSums(Cx)
+
+    CatchbyFleet[, , t] = rowSums(CatchbyFleetx, dims=2)
+    YieldbyFleet[, , t] = 1e-6*rowSums(YieldbyFleetx, dims=2)
+    YieldbyFleetByGroup[, , t] = 1e-6*rowSums(YieldbyFleetByGroupx, dims=2)
 
     bio = getBiomass(Bx, skeleton=skeleton)
     Bage[, t] = bio$Bage
@@ -197,15 +211,14 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
 
   pop = updatePopulation(pop, N=No[, t+1], L=Lo[, t+1], w=a*Lo[, t+1]^b, TL=tl)
 
-
-
-
   colnames(Y) = colnames(B) = sapply(groups, FUN="[[", i="name")
 
   tcb = rowSums(B[, types=="functional_group"])
-  if(!is.null(prices)) {
+
+  if(!is.null(prices)) { # needs to be updated!
+    # prices is matrix nGroups x nFleets
     prix = matrix(prices, nrow=nrow(B), ncol=sum(types=="functional_group"), byrow=TRUE)
-    value = rowSums(B[, types=="functional_group"]*prix)
+    value = rowSums(Y[, types=="functional_group"]*prix)
   } else {
     value=NA
   }
@@ -219,7 +232,7 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
   L = Lo
 
   raw = list(N=N, L=L, C=C, TL=TL, Bage=Bage, CatchbyFleet=CatchbyFleet,
-             CatchbyFleetByGroup=CatchbyFleetByGroup)
+             YieldbyFleet=YieldbyFleet, YieldbyFleetByGroup=YieldbyFleetByGroup)
 
   out = list(B=B, Y=Y, tcb=tcb, value=value, raw=raw, pop=pop, CPU.time=CPU.time, time=time, groupTypes=types)
 
