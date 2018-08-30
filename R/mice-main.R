@@ -178,16 +178,14 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
     tl      = updateTL(TL=TL[, t], skeleton=skeleton, egg_tl=egg_tl)
 
     C[, t] = rowSums(Cx)
-
     CatchbyFleet[, , t] = rowSums(CatchbyFleetx, dims=2)
     YieldbyFleet[, , t] = 1e-6*rowSums(YieldbyFleetx, dims=2)
     YieldbyFleetByGroup[, , t] = 1e-6*rowSums(YieldbyFleetByGroupx, dims=2)
+    Y[t, ] = 1e-6*rowsum(rowSums(Yx), group=.getVar(pop, "name"), reorder = FALSE)
 
     bio = getBiomass(Bx, skeleton=skeleton)
     Bage[, t] = bio$Bage
-
     B[t, ] = bio$B  # biomass by functional group
-    Y[t, ] = 1e-6*rowsum(rowSums(Yx), group=.getVar(pop, "name"), reorder = FALSE)
 
     # reproduction
     SSB = Nx[, xndt+1]*w_ssb     # abundance at the end (instantaneous reproduction)
@@ -216,11 +214,10 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
   tcb = rowSums(B[, types=="functional_group"])
 
   if(!is.null(prices)) { # needs to be updated!
-    # prices is matrix nGroups x nFleets
-    prix = matrix(prices, nrow=nrow(B), ncol=sum(types=="functional_group"), byrow=TRUE)
-    value = rowSums(Y[, types=="functional_group"]*prix)
+    # prices is matrix nGroups x nFleets, check at the beggining...
+    landedValue = YieldbyFleetByGroup*as.numeric(prices)
   } else {
-    value=NA
+    landedValue=NA
   }
 
   CPU.time = proc.time() - CPU.time
@@ -234,7 +231,7 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
   raw = list(N=N, L=L, C=C, TL=TL, Bage=Bage, CatchbyFleet=CatchbyFleet,
              YieldbyFleet=YieldbyFleet, YieldbyFleetByGroup=YieldbyFleetByGroup)
 
-  out = list(B=B, Y=Y, tcb=tcb, value=value, raw=raw, pop=pop, CPU.time=CPU.time, time=time, groupTypes=types)
+  out = list(B=B, Y=Y, tcb=tcb, value=landedValue, raw=raw, pop=pop, CPU.time=CPU.time, time=time, groupTypes=types)
 
   class(out) = "mice.model"
 
