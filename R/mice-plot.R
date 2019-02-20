@@ -25,7 +25,7 @@ plot.mice.model = function(x, skip=0, ...) {
     ymax = max(b, na.rm=TRUE)
     plot(xtime[ind], b, col=icol, axes=FALSE, type="l",
          ylim=c(0,ymax))
-    lines(xtime[ind], y, type="h", col=icol)
+    lines(xtime[ind], 4*y, type="h", col=icol)
     axis(2*((i+1)%%2+1), las=1); box()
     mtext(toupper(colnames(sim$B)[i+nr]), 3, adj=0.95, line=-1, cex=0.5, col=icol)
   }
