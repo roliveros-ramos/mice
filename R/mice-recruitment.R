@@ -26,11 +26,14 @@ getRecruitment = function(SSB, SSN, t, skeleton, groups, environment) {
 rho = function(T, par) {
   if(is.null(par[["Topt"]]))
     stop("Optimal temperature value must be provided.") else Topt = par[["Topt"]]
-  if(is.null(par[["u"]])) u = 3 else u = par[["u"]]
-  if(is.null(par[["Ts"]])) Ts = 10 else Ts = par[["Ts"]]
+  if(is.null(par[["u"]])) u = 0 else u = par[["u"]]
+  if(is.null(par[["Ts"]])) Ts = 5 else Ts = par[["Ts"]]
+  if(u<0) stop("'u' parameter must be positive.")
+  u = 100*u + 4 + sqrt(.Machine$double.eps)
 
+  omax = 1 - 2*(u^(-Ts/2))
   out = pmax(1 - u^((T-Topt)-Ts/2) - u^(-(T-Topt)-Ts/2), 0)
-  return(out)
+  return(out/omax)
 }
 
 
