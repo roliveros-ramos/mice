@@ -232,13 +232,14 @@ initFleets = function(fleets, groups, ndtPerYear, T) {
   # add seasonality
 
   # move to checkFleets
+  if(is.null(par$E)) par$E = 1
   ndt = ndtPerYear*T
-  F = par$F
+  F = par$q*par$E
 
   if(length(F)==1) F = rep(F, ndt) # constant F
   if(length(F)==T) F = rep(F, each=ndtPerYear) # F by Year
 
-  if(length(F)!=ndt) stop("Fishing mortality is not right.") # improve: message
+  if(length(F)!=ndt) stop("Effort must be provided by year.") # improve: message
 
   par$F = F
 
@@ -324,9 +325,13 @@ checkEnvironment = function(environment, ndt) {
   if(is.null(environment)) return(NULL)
   if(!is.list(environment)) stop("The 'environment' argument must be a list.")
   ll = sapply(environment, length)
-  if(any(ll!=ndt)) stop("You must provide one value per time step.")
+  if(any(ll < ndt)) stop("You must provide at least one value per time step.")
   return(environment)
 
+}
+
+.checkEnvironment = function(environment, ndt) {
+  NULL
 }
 
 # update Parameters -------------------------------------------------------
