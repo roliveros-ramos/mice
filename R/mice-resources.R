@@ -9,9 +9,17 @@
   if(is.null(biomass))
     stop("Biomass for each resource must be provided, check resources definition.")
 
-  if(length(biomass)==1) return(rep(biomass, Ndt))
+  if(length(biomass) == 1) return(rep(biomass, Ndt))
 
-  if(length(biomass)==ndt) return(rep(biomass, each=xdt))
+  if(length(biomass) == Ndt) return(biomass)
+
+  if(length(biomass) == ndt) return(rep(biomass, each=xdt))
+
+  if(length(biomass) > ndt) {
+    warning(sprintf("Ignoring additional biomass values (%s supplied, %s needed).",
+                    length(biomass), ndt))
+    return(rep(biomass[seq_len(ndt)], each=xdt))
+  }
 
   stop("One resource biomass value for every time step or a single one must be provided.")
 
