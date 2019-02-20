@@ -41,6 +41,18 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
   if(length(Fmult)==1) Fmult = rep(Fmult, length(fleets))
   if(length(Fmult)!=length(fleets)) stop("Wrong number of Fishing multipliers.")
 
+
+  if(!is.null(prices)) {
+
+    prices = as.matrix(prices)
+    if(nrow(prices)!=length(groups))
+      stop("The price matrix must include one line per functional group (including resources).")
+    if(ncol(prices)==1) prices = matrix(prices, nrow=length(groups), ncol=length(fleets))
+    if(ncol(prices)!=length(fleets))
+      stop("The price matrix must include one column per fleet (including resources).")
+
+  }
+
   environment = checkEnvironment(environment, ndt=ndt) # TO_DO: check, set defaults
   # if(!is.null(par)) environment = updateParameters(environment, par)
 
@@ -129,7 +141,8 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
     Yx = matrix(nrow=nSizeGroups, ncol=xndt)
 
     CatchbyFleetx        = array(dim=c(nSizeGroups, length(fleets), xndt)) # catch (number)
-    CatchbyFleetByGroupx = array(dim=c(nGroups,     length(fleets), xndt)) # catch (number)
+    YieldbyFleetx        = array(dim=c(nSizeGroups, length(fleets), xndt)) # catch (number)
+    YieldbyFleetByGroupx = array(dim=c(nGroups,     length(fleets), xndt)) # catch (number)
 
     preyed = matrix(0, nrow=nSizeGroups, ncol=nSizeGroups)
 
@@ -170,7 +183,7 @@ runMICE = function(groups, fleets, environment=NULL, T, ndtPerYear=4,
 
       CatchbyFleetx[, , s] = deaths*Fst/Z
       YieldbyFleetx[, , s] = CatchbyFleetx[, , s]*w05
-      YieldbyFleetByGroupx[, , s] = rowsum(YieldbyFleetx[, , x], group=gNames, reorder=FALSE)
+      YieldbyFleetByGroupx[, , s] = rowsum(YieldbyFleetx[, , s], group=gNames, reorder=FALSE)
 
     } # end of sub-dt
 
